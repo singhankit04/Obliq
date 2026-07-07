@@ -52,7 +52,7 @@ export const updateWorkspace = async (workspaceId, userId, updates) => {
     error.statusCode = 403;
     throw error;
   }
-  return Workspace.findByIdAndUpdate(workspaceId, updates, { new: true, runValidators: true });
+  return Workspace.findByIdAndUpdate(workspaceId, {...updates,updatedBy: userId }, { new: true, runValidators: true });
 };
 
 /**

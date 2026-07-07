@@ -99,7 +99,7 @@ export const registerUser = async ({ name, email, password, userAgent, ip }) => 
   await OTP.deleteOne({ _id: otpRecord._id });
 
   return {
-    user: { id: user._id, name: user.name, email: user.email },
+    user: { name: user.name, email: user.email },
     ...tokens
   };
 };
@@ -115,7 +115,7 @@ export const loginUser = async ({ email, password, userAgent, ip }) => {
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 
   return {
-    user: { id: user._id, name: user.name, email: user.email },
+    user: { name: user.name, email: user.email },
     ...tokens
   };
 };
@@ -226,4 +226,11 @@ export const resetPassword = async (token, newPassword) => {
 
   // For security, revoke all active sessions so the user must log in with their new password
   await Session.updateMany({ userId: user._id }, { isValid: false });
+};
+
+export const searchUsersByEmail = async (email) => {
+  return User.find({ email: { $regex: email, $options: 'i' } })
+    .select('name email')
+    .limit(10)
+    .lean();
 };

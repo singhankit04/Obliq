@@ -30,7 +30,7 @@ export const getProjectById = async (req, res, next) => {
   }
 };
 
-export const updateProject = async (req, res, next) => {
+export const    updateProject = async (req, res, next) => {
   try {
     const project = await projectService.updateProject(req.params.projectId, req.user._id, req.body);
     res.json({ message: 'Project updated successfully', project });

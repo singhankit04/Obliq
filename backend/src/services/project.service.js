@@ -96,7 +96,7 @@ export const updateProject = async (projectId, userId, updates) => {
     throw error;
   }
 
-  return Project.findByIdAndUpdate(projectId, updates, { new: true, runValidators: true });
+  return Project.findByIdAndUpdate(projectId, {...updates,updatedBy: userId }, { new: true, runValidators: true });
 };
 
 /**

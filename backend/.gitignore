@@ -25,3 +25,7 @@ yarn-error.log*
 
 # Uploads/Storage
 uploads/
+
+
+
+seeduser.js

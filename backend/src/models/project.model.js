@@ -26,6 +26,11 @@ const projectSchema = new mongoose.Schema(
       enum: ['active', 'completed', 'archived'],
       default: 'active',
     },
+    updatedBy:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default:null,
+    }
   },
   { timestamps: true }
 );

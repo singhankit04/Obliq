@@ -144,3 +144,19 @@ export const resetPassword = async (req, res, next) => {
     next(error);
   }
 };
+
+export const searchUsers = async (req, res, next) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: 'Email query parameter is required' });
+    }
+    const users = await authService.searchUsersByEmail(email);
+    res.json({ users });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    next(error);
+  }
+};
