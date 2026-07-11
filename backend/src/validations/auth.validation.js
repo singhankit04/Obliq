@@ -41,6 +41,12 @@ export const resetPasswordSchema = z.object({
   }),
 });
 
+export const googleLoginSchema = z.object({
+  body: z.object({
+    credential: z.string().min(1, 'Google credential token is required'),
+  }),
+});
+
 // Middleware generator to use these schemas
 export const validate = (schema) => (req, res, next) => {
   try {

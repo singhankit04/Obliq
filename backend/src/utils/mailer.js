@@ -1,24 +1,51 @@
 import nodemailer from 'nodemailer';
 
-// Generate Ethereal test account or use provided environment variables
+let transporter = null;
+
+const getTransporter = async () => {
+  if (transporter) {
+    return transporter;
+  }
+
+  let transporterConfig;
+
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    transporterConfig = {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    };
+  } else {
+    console.log('Generating Ethereal SMTP credentials for development...');
+    const account = await nodemailer.createTestAccount();
+    transporterConfig = {
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: account.user,
+        pass: account.pass,
+      },
+    };
+  }
+
+  transporter = nodemailer.createTransport(transporterConfig);
+  return transporter;
+};
+
 export const sendEmail = async ({ to, subject, html }) => {
   try {
-    // We use ethereal for development mail sending
-    // For production, supply actual credentials in .env
-    const account = await nodemailer.createTestAccount();
+    const activeTransporter = await getTransporter();
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER || account.user,
-        pass: process.env.SMTP_PASS || account.pass,
-      },
-    });
+    const fromName = process.env.SMTP_FROM_NAME || 'Obliq';
+    const fromEmail = process.env.SMTP_FROM_EMAIL || 'noreply@obliq.com';
 
-    const info = await transporter.sendMail({
-      from: '"SaaS Manager" <noreply@saasmanager.com>',
+    const info = await activeTransporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       html,
@@ -26,8 +53,9 @@ export const sendEmail = async ({ to, subject, html }) => {
 
     console.log('Message sent: %s', info.messageId);
     
-    // Preview only available when sending through an Ethereal account
-    console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    if (!process.env.SMTP_HOST) {
+      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    }
     
     return info;
   } catch (error) {

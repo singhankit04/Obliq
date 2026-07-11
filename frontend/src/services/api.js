@@ -51,6 +51,7 @@ export const api = {
   verifyOtp: (email, otp) => apiInstance.post('/auth/verify-otp', { email, otp }).then(res => res.data),
   signup: (name, email, password) => apiInstance.post('/auth/signup', { name, email, password }).then(res => res.data),
   login: (email, password) => apiInstance.post('/auth/login', { email, password }).then(res => res.data),
+  googleLogin: (credential) => apiInstance.post('/auth/google', { credential }).then(res => res.data),
   logout: () => apiInstance.post('/auth/logout').then(res => res.data),
   forgotPassword: (email) => apiInstance.post('/auth/forgot-password', { email }).then(res => res.data),
   resetPassword: (token, newPassword) => apiInstance.post('/auth/reset-password', { token, newPassword }).then(res => res.data),

@@ -58,6 +58,14 @@ export const AuthProvider = ({ children }) => {
     return loggedUser;
   };
 
+  const googleLogin = async (credential) => {
+    const data = await api.googleLogin(credential);
+    const loggedUser = data.user;
+    setUser(loggedUser);
+    localStorage.setItem('obliq_user', JSON.stringify(loggedUser));
+    return loggedUser;
+  };
+
   const logout = async () => {
     try {
       await api.logout();
@@ -69,7 +77,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, googleLogin, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

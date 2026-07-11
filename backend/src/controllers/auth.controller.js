@@ -160,3 +160,25 @@ export const searchUsers = async (req, res, next) => {
     next(error);
   }
 };
+
+export const googleLogin = async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
+
+    const result = await authService.loginWithGoogle({ credential, userAgent, ip });
+
+    setCookies(res, result.accessToken, result.refreshToken);
+
+    res.json({
+      message: 'Google login successful',
+      user: result.user
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    next(error);
+  }
+};

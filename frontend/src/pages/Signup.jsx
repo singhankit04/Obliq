@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -15,8 +15,56 @@ export default function Signup() {
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { signup } = useAuth();
+  const { signup, googleLogin } = useAuth();
   const navigate = useNavigate();
+
+  const handleGoogleCallback = async (response) => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await googleLogin(response.credential);
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Google sign up failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (step !== 1) return;
+
+    const initializeGoogleSignUp = () => {
+      if (window.google?.accounts?.id) {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your_google_client_id_here';
+        
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCallback,
+        });
+
+        window.google.accounts.id.renderButton(
+          document.getElementById('google-signup-btn'),
+          { 
+            theme: 'filled_dark', 
+            size: 'large', 
+            width: '100%',
+            shape: 'rectangular',
+            text: 'signup_with',
+          }
+        );
+      }
+    };
+
+    const interval = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        initializeGoogleSignUp();
+        clearInterval(interval);
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [step]);
 
   // Send OTP and transition to step 2
   const handleSendOtp = async (e) => {
@@ -90,7 +138,8 @@ export default function Signup() {
         )}
 
         {step === 1 ? (
-          <form onSubmit={handleSendOtp} className="space-y-5">
+          <>
+            <form onSubmit={handleSendOtp} className="space-y-5">
             <div>
               <label className="block text-slate-300 text-sm font-medium mb-1.5" htmlFor="name">
                 Full Name
@@ -160,7 +209,21 @@ export default function Signup() {
               )}
             </button>
           </form>
-        ) : (
+
+          <div className="relative my-6" >
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-800"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-[#0b0f19] px-2 text-slate-500">Or continue with</span>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <div id="google-signup-btn" className="w-full min-h-[40px] flex justify-center"></div>
+          </div>
+        </>
+      ) : (
           <form onSubmit={handleVerifyAndSignup} className="space-y-5">
             <div>
               <label className="block text-slate-300 text-sm font-medium mb-1.5" htmlFor="otp">

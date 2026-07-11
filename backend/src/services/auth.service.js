@@ -229,8 +229,54 @@ export const resetPassword = async (token, newPassword) => {
 };
 
 export const searchUsersByEmail = async (email) => {
-  return User.find({ email: { $regex: email, $options: 'i' } })
+  return User.find({email: email.toLowerCase()})
     .select('name email')
     .limit(10)
     .lean();
+};
+
+export const loginWithGoogle = async ({ credential, userAgent, ip }) => {
+  let ticket;
+  try {
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    if (!response.ok) {
+      throw new Error('Failed to verify Google token');
+    }
+    ticket = await response.json();
+  } catch (err) {
+    const error = new Error('Invalid Google token');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { email, name, sub: googleId, aud } = ticket;
+
+  const expectedClientId = process.env.GOOGLE_CLIENT_ID;
+  if (expectedClientId && aud !== expectedClientId) {
+    const error = new Error('Invalid audience: Client ID mismatch');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+  if (!user) {
+    user = await User.create({
+      name,
+      email,
+      googleId,
+    });
+  } else {
+    if (!user.googleId) {
+      user.googleId = googleId;
+      await user.save();
+    }
+  }
+
+  const tokens = await createSessionAndTokens(user, userAgent, ip);
+
+  return {
+    user: { name: user.name, email: user.email },
+    ...tokens
+  };
 };
