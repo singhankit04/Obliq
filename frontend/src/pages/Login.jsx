@@ -28,7 +28,7 @@ export default function Login() {
   useEffect(() => {
     const initializeGoogleSignIn = () => {
       if (window.google?.accounts?.id) {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your_google_client_id_here';
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ;
         
         window.google.accounts.id.initialize({
           client_id: clientId,
