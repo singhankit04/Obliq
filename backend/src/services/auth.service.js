@@ -1,10 +1,17 @@
 import User from '../models/user.model.js';
-import Session from '../models/session.model.js';
+import {
+  createRedisSession,
+  getRedisSession,
+  updateRedisSessionToken,
+  revokeRedisSession,
+  revokeAllUserSessions,
+} from './session.service.js';
 import redis from '../config/redis.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sendEmail } from '../utils/mailer.js';
+import { sendEmail } from '../config/mailer.js';
+import { renderOtpEmail, renderResetPasswordEmail } from '../templates/index.js';
 import { recordOtpRequest, recordFailedLogin, clearFailedLogins, recordFailedOtpVerify } from '../middlewares/rateLimiter.middleware.js';
 
 // Internal helpers
@@ -19,17 +26,16 @@ const hashToken = (token) => {
 };
 
 const createSessionAndTokens = async (user, userAgent, ip) => {
-  const session = new Session({
+  const { sessionId } = await createRedisSession({
     userId: user._id,
-    refreshTokenHash: 'placeholder',
     userAgent,
     ip,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
 
-  const { accessToken, refreshToken } = generateTokens(user._id, session._id);
-  session.refreshTokenHash = hashToken(refreshToken);
-  await session.save();
+  const { accessToken, refreshToken } = generateTokens(user._id, sessionId);
+  const tokenHash = hashToken(refreshToken);
+
+  await updateRedisSessionToken(sessionId, tokenHash);
 
   return { accessToken, refreshToken };
 };
@@ -67,7 +73,7 @@ export const sendSignupOtp = async (email, type = 'signup') => {
   await sendEmail({
     to: email,
     subject,
-    html: `<p>Your verification code is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
+    html: renderOtpEmail({ otp, type }),
   });
 };
 
@@ -181,7 +187,7 @@ export const refreshAuthTokens = async (refreshToken) => {
     throw error;
   }
 
-  const session = await Session.findById(decoded.sessionId);
+  const session = await getRedisSession(decoded.sessionId);
   if (!session) {
     const error = new Error('Session not found');
     error.statusCode = 403;
@@ -191,7 +197,7 @@ export const refreshAuthTokens = async (refreshToken) => {
   if (!session.isValid) {
     // Security breach detected: someone used a revoked token. 
     // Invalidate all sessions for the user!
-    await Session.updateMany({ userId: session.userId }, { isValid: false });
+    await revokeAllUserSessions(session.userId);
     const error = new Error('Invalid session');
     error.statusCode = 403;
     throw error;
@@ -201,17 +207,16 @@ export const refreshAuthTokens = async (refreshToken) => {
   if (session.refreshTokenHash !== providedTokenHash) {
     // Token reuse detected (family of tokens compromise)
     // Invalidate all sessions for the user to be safe
-    await Session.updateMany({ userId: session.userId }, { isValid: false });
+    await revokeAllUserSessions(session.userId);
     const error = new Error('Token reuse detected. All sessions revoked.');
     error.statusCode = 403;
     throw error;
   }
 
-  const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded.userId, session._id);
+  const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded.userId, session.id);
+  const newHash = hashToken(newRefreshToken);
 
-  session.refreshTokenHash = hashToken(newRefreshToken);
-  session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await session.save();
+  await updateRedisSessionToken(session.id, newHash);
 
   return { accessToken, refreshToken: newRefreshToken };
 };
@@ -220,12 +225,9 @@ export const logoutUser = async (refreshToken) => {
   if (refreshToken) {
     try {
       const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'refresh-secret', { ignoreExpiration: true });
-      const providedTokenHash = hashToken(refreshToken);
-
-      await Session.findOneAndUpdate(
-        { _id: decoded.sessionId, refreshTokenHash: providedTokenHash },
-        { isValid: false }
-      );
+      if (decoded && decoded.sessionId) {
+        await revokeRedisSession(decoded.sessionId);
+      }
     } catch (err) {
       // ignore
     }
@@ -245,7 +247,7 @@ export const sendPasswordResetEmail = async (email) => {
   await sendEmail({
     to: user.email,
     subject: 'Password Reset Request',
-    html: `<p>You requested a password reset.</p><p>Click <a href="${resetUrl}">here</a> to reset your password.</p><p>This link is valid for 15 minutes.</p>`
+    html: renderResetPasswordEmail({ resetUrl }),
   });
 };
 
@@ -270,7 +272,7 @@ export const resetPassword = async (token, newPassword) => {
   await user.save(); // The pre-save hook will hash it
 
   // For security, revoke all active sessions so the user must log in with their new password
-  await Session.updateMany({ userId: user._id }, { isValid: false });
+  await revokeAllUserSessions(user._id);
 };
 
 export const searchUsersByEmail = async (email) => {
