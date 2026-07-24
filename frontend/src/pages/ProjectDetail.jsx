@@ -196,10 +196,10 @@ export default function ProjectDetail() {
   };
 
   // Check current project permissions
-  const myWorkspaceMembership = workspaceMembers.find(m => m.user._id === currentUser?.id || m.user.email === currentUser?.email);
+  const myWorkspaceMembership = workspaceMembers.find(m => m.user?._id === currentUser?.id || m.user?._id === currentUser?._id || m.user?.email === currentUser?.email);
   const isWorkspaceAdmin = myWorkspaceMembership && ['owner', 'manager'].includes(myWorkspaceMembership.role);
   
-  const myProjectMembership = projectMembers.find(m => m.user._id === currentUser?.id || m.user.email === currentUser?.email);
+  const myProjectMembership = projectMembers.find(m => m.user?._id === currentUser?.id || m.user?._id === currentUser?._id || m.user?.email === currentUser?.email);
   const isProjectManager = myProjectMembership?.role === 'manager' || myProjectMembership?.role === 'owner';
   const hasEditRights = isWorkspaceAdmin || isProjectManager;
 
@@ -213,7 +213,7 @@ export default function ProjectDetail() {
 
   // Filter workspace members to show only those who are NOT yet in the project
   const availableWorkspaceMembers = workspaceMembers.filter(
-    (wm) => !projectMembers.some((pm) => pm.user._id === wm.user._id)
+    (wm) => wm.user && !projectMembers.some((pm) => pm.user?._id === wm.user?._id)
   );
 
   return (
@@ -485,7 +485,7 @@ export default function ProjectDetail() {
                     className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
                   >
                     <option value="">Unassigned</option>
-                    {projectMembers.map((m) => (
+                    {projectMembers.filter(m => m.user).map((m) => (
                       <option key={m.user._id} value={m.user._id}>
                         {m.user.name}
                       </option>
@@ -548,7 +548,7 @@ export default function ProjectDetail() {
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-xs cursor-pointer"
                     >
                       <option value="">Select a workspace member...</option>
-                      {availableWorkspaceMembers.map((m) => (
+                      {availableWorkspaceMembers.filter(m => m.user).map((m) => (
                         <option key={m.user._id} value={m.user._id}>
                           {m.user.name} ({m.user.email})
                         </option>
@@ -592,14 +592,14 @@ export default function ProjectDetail() {
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
                   {projectMembers.map((m) => {
-                    const isSelf = m.user._id === currentUser?.id || m.user.email === currentUser?.email;
+                    const isSelf = m.user?._id === currentUser?.id || m.user?._id === currentUser?._id || m.user?.email === currentUser?.email;
                     const canRemove = hasEditRights && !isSelf && m.role !== 'owner';
 
                     return (
                       <tr key={m._id} className="hover:bg-slate-900/10">
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-slate-200">{m.user.name} {isSelf && <span className="text-[9px] text-purple-400 bg-purple-500/10 px-1 rounded-md ml-1">You</span>}</p>
-                          <p className="text-[10px] text-slate-500">{m.user.email}</p>
+                          <p className="font-semibold text-slate-200">{m.user?.name || 'Unknown User'} {isSelf && <span className="text-[9px] text-purple-400 bg-purple-500/10 px-1 rounded-md ml-1">You</span>}</p>
+                          <p className="text-[10px] text-slate-500">{m.user?.email || 'N/A'}</p>
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${

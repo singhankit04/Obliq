@@ -57,7 +57,7 @@ export default function Dashboard() {
         const data = await api.searchUsers(searchEmail);
         // Exclude users already in the members list
         const filtered = (data.users || []).filter(
-          (u) => !members.some((m) => m.user._id === u._id)
+          (u) => !members.some((m) => m.user?._id === u._id)
         );
         setSearchResults(filtered);
       } catch (err) {
@@ -117,7 +117,7 @@ export default function Dashboard() {
   };
 
   // Determine current user's membership role
-  const myMembership = members.find(m => m.user._id === currentUser?.id || m.user.email === currentUser?.email);
+  const myMembership = members.find(m => m.user?._id === currentUser?.id || m.user?._id === currentUser?._id || m.user?.email === currentUser?.email);
   const isOwner = myMembership?.role === 'owner';
   const isManager = myMembership?.role === 'manager';
   const hasAdminRights = isOwner || isManager;
@@ -244,13 +244,13 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
                   {members.map((m) => {
-                    const isSelf = m.user._id === currentUser?.id || m.user.email === currentUser?.email;
+                    const isSelf = m.user?._id === currentUser?.id || m.user?._id === currentUser?._id || m.user?.email === currentUser?.email;
                     const canEditMember = hasAdminRights && m.role !== 'owner' && !isSelf;
 
                     return (
                       <tr key={m._id} className="hover:bg-slate-900/10">
-                        <td className="px-6 py-4 font-semibold text-slate-200">{m.user.name} {isSelf && <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded-md ml-1.5">You</span>}</td>
-                        <td className="px-6 py-4">{m.user.email}</td>
+                        <td className="px-6 py-4 font-semibold text-slate-200">{m.user?.name || 'Unknown'} {isSelf && <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded-md ml-1.5">You</span>}</td>
+                        <td className="px-6 py-4">{m.user?.email || 'N/A'}</td>
                         <td className="px-6 py-4">
                           {canEditMember && isOwner ? (
                             <select

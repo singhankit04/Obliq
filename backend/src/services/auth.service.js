@@ -1,9 +1,11 @@
 import User from '../models/user.model.js';
 import Session from '../models/session.model.js';
-import OTP from '../models/otp.model.js';
+import redis from '../config/redis.js';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/mailer.js';
+import { recordOtpRequest, recordFailedLogin, clearFailedLogins, recordFailedOtpVerify } from '../middlewares/rateLimiter.middleware.js';
 
 // Internal helpers
 const generateTokens = (userId, sessionId) => {
@@ -33,61 +35,101 @@ const createSessionAndTokens = async (user, userAgent, ip) => {
 };
 
 // Exported services
-export const sendSignupOtp = async (email) => {
+export const sendSignupOtp = async (email, type = 'signup') => {
   const userExists = await User.findOne({ email });
-  if (userExists) {
+
+  if (type === 'signup' && userExists) {
     const error = new Error('User already exists');
     error.statusCode = 400;
+    throw error;
+  }
+
+  if (type === 'login' && !userExists) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
     throw error;
   }
 
   // Generate 4 digit OTP
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-  // Save/Update OTP
-  await OTP.findOneAndDelete({ email }); // Remove existing if any
-  await OTP.create({ email, otp });
+  // Hash OTP for Redis storage
+  const hashedOtp = await bcrypt.hash(otp, 10);
+
+  // Save/Update OTP in Redis (10 minutes TTL = 600 seconds)
+  await redis.set(`otp:${email}`, JSON.stringify({ otp: hashedOtp, type, isVerified: false }), 'EX', 600);
+
+  // Record OTP request event (sets 60s cooldown and increments 10-min counter)
+  await recordOtpRequest(email);
 
   // Send Email
+  const subject = type === 'login' ? 'Your Login Verification OTP' : 'Your Signup Verification OTP';
   await sendEmail({
     to: email,
-    subject: 'Your Signup Verification OTP',
+    subject,
     html: `<p>Your verification code is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
   });
 };
 
-export const verifySignupOtp = async (email, otp) => {
-  const otpRecord = await OTP.findOne({ email });
-  if (!otpRecord) {
+export const verifySignupOtp = async (email, otp, userAgent, ip) => {
+  const data = await redis.get(`otp:${email}`);
+  if (!data) {
     const error = new Error('OTP not found or expired');
     error.statusCode = 400;
     throw error;
   }
- 
-  const isMatch = await otpRecord.matchOtp(otp);
- 
+
+  const otpRecord = JSON.parse(data);
+  const isMatch = await bcrypt.compare(otp, otpRecord.otp);
+
   if (!isMatch) {
-    const error = new Error('Invalid OTP');
+    const wasInvalidated = await recordFailedOtpVerify(email);
+    const error = new Error(
+      wasInvalidated
+        ? 'Too many failed attempts. OTP has been invalidated. Please request a new OTP.'
+        : 'Invalid OTP'
+    );
     error.statusCode = 400;
     throw error;
   }
-  otpRecord.isVerified = true;
-  
-  await otpRecord.save();
-  
 
+  if (otpRecord.type === 'login') {
+    const user = await User.findOne({ email });
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const tokens = await createSessionAndTokens(user, userAgent, ip);
+    await redis.del(`otp:${email}`);
+
+    return {
+      isLogin: true,
+      user: { name: user.name, email: user.email },
+      ...tokens,
+    };
+  }
+
+  // Mark as verified for signup flow
+  await redis.set(`otp:${email}`, JSON.stringify({ ...otpRecord, isVerified: true }), 'EX', 600);
+  return { isLogin: false };
 };
 
 export const registerUser = async ({ name, email, password, userAgent, ip }) => {
   const userExists = await User.findOne({ email });
+
   if (userExists) {
     const error = new Error('User already exists');
     error.statusCode = 400;
     throw error;
   }
 
-  const otpRecord = await OTP.findOne({ email, isVerified: true });
-  if (!otpRecord) {
+  const data = await redis.get(`otp:${email}`);
+  const otpRecord = data ? JSON.parse(data) : null;
+
+
+  if (!otpRecord || !otpRecord.isVerified) {
     const error = new Error('Email not verified. Please verify OTP first.');
     error.statusCode = 400;
     throw error;
@@ -96,7 +138,7 @@ export const registerUser = async ({ name, email, password, userAgent, ip }) => 
   const user = await User.create({ name, email, password });
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 
-  await OTP.deleteOne({ _id: otpRecord._id });
+  await redis.del(`otp:${email}`);
 
   return {
     user: { name: user.name, email: user.email },
@@ -107,10 +149,13 @@ export const registerUser = async ({ name, email, password, userAgent, ip }) => 
 export const loginUser = async ({ email, password, userAgent, ip }) => {
   const user = await User.findOne({ email });
   if (!user || !(await user.matchPassword(password))) {
+    await recordFailedLogin(email);
     const error = new Error('Invalid email or password');
     error.statusCode = 401;
     throw error;
   }
+
+  await clearFailedLogins(email);
 
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 

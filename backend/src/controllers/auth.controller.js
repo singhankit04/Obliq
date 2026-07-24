@@ -18,8 +18,8 @@ const setCookies = (res, accessToken, refreshToken) => {
 
 export const sendOtp = async (req, res, next) => {
   try {
-    const { email } = req.body;
-    await authService.sendSignupOtp(email);
+    const { email, type } = req.body;
+    await authService.sendSignupOtp(email, type);
     res.json({ message: 'OTP sent successfully' });
   } catch (error) {
     if (error.statusCode) {
@@ -32,9 +32,20 @@ export const sendOtp = async (req, res, next) => {
 export const verifyOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-    await authService.verifySignupOtp(email, otp);
-    res.json({ message: 'Email verified successfully' });
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
 
+    const result = await authService.verifySignupOtp(email, otp, userAgent, ip);
+
+    if (result?.isLogin) {
+      setCookies(res, result.accessToken, result.refreshToken);
+      return res.json({
+        message: 'Login successful',
+        user: result.user
+      });
+    }
+
+    res.json({ message: 'Email verified successfully' });
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json({ message: error.message });

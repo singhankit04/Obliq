@@ -89,21 +89,34 @@ export default function ResetPassword() {
         {!success && (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5" htmlFor="password">
-                New Password
-              </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-slate-300 text-sm font-medium" htmlFor="password">
+                  New Password
+                </label>
+                <span className={`text-[11px] ${password.length > 0 && password.length < 6 ? 'text-red-400 font-medium' : 'text-slate-500'}`}>
+                  Min. 6 characters
+                </span>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                   id="password"
                   type="password"
                   required
+                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-sm"
+                  className={`w-full pl-11 pr-4 py-2.5 bg-slate-950/50 border rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 transition-all text-sm ${
+                    password.length > 0 && password.length < 6
+                      ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500'
+                      : 'border-slate-800 focus:border-purple-500 focus:ring-purple-500'
+                  }`}
                 />
               </div>
+              {password.length > 0 && password.length < 6 && (
+                <p className="text-[11px] text-red-400 mt-1">Password must be at least 6 characters long.</p>
+              )}
             </div>
 
             <div>

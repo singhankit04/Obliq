@@ -18,6 +18,7 @@ export const loginSchema = z.object({
 export const sendOtpSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address'),
+    type: z.enum(['signup', 'login']).optional(),
   }),
 });
 
@@ -59,6 +60,7 @@ export const validate = (schema) => (req, res, next) => {
     next();
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.log("hi")
       return res.status(400).json({ errors: error.errors });
     }
     next(error);
