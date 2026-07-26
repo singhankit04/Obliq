@@ -94,7 +94,6 @@ export const updateRedisSessionFields = async (sessionId, fieldsToUpdate) => {
 export const updateRedisSessionToken = async (sessionId, newRefreshTokenHash) => {
   return updateRedisSessionFields(sessionId, { refreshTokenHash: newRefreshTokenHash });
 };
-
 /**
  * Revokes and deletes a single session from Redis Hash and User Set
  * @param {string} sessionId

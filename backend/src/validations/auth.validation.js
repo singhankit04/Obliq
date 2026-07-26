@@ -50,19 +50,19 @@ export const googleLoginSchema = z.object({
 
 // Middleware generator to use these schemas
 export const validate = (schema) => (req, res, next) => {
-  try {
-    schema.parse({
-      body: req.body,
-      query: req.query,
-      params: req.params,
-    })
+  const result = schema.safeParse({
+    body: req.body,
+    query: req.query,
+    params: req.params,
+  });
 
-    next();
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.log("hi")
-      return res.status(400).json({ errors: error.errors });
-    }
-    next(error);
+  if (!result.success) {
+    return res.status(400).json({
+      errors: result.error.issues,
+    });
   }
+
+  req.body = result.data.body;
+
+  next();
 };

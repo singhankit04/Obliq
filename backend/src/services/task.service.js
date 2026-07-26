@@ -15,10 +15,17 @@ const assertProjectAccess = async (projectId, userId) => {
   }
 
   const workspaceMembership = await WorkspaceMember.findOne({ workspace: project.workspace, user: userId });
+  if (!workspaceMembership) {
+    const error = new Error('Access denied');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const isWorkspaceAdmin = ['owner', 'manager'].includes(workspaceMembership.role);
   const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
 
-  if (!workspaceMembership && !projectMembership) {
-    const error = new Error('Access denied');
+  if (!projectMembership && !isWorkspaceAdmin) {
+    const error = new Error('Access denied: you are not a member of this project');
     error.statusCode = 403;
     throw error;
   }
@@ -43,6 +50,7 @@ export const createTask = async (projectId, creatorId, taskData) => {
     project: projectId,
     createdBy: creatorId,
     ...taskData,
+    assignedTo: taskData.assignedTo || [],
   });
 };
 

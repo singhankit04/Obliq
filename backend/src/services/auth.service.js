@@ -276,7 +276,10 @@ export const resetPassword = async (token, newPassword) => {
 };
 
 export const searchUsersByEmail = async (email) => {
-  return User.find({email: email.toLowerCase()})
+  const cleanEmail = email ? email.trim() : '';
+  if (!cleanEmail) return [];
+  const escapedEmail = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return User.find({ email: { $regex: escapedEmail, $options: 'i' } })
     .select('name email')
     .limit(10)
     .lean();

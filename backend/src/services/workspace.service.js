@@ -1,5 +1,8 @@
 import Workspace from '../models/workspace.model.js';
 import WorkspaceMember from '../models/workspaceMember.model.js';
+import Project from '../models/project.model.js';
+import ProjectMember from '../models/projectMember.model.js';
+import Task from '../models/task.model.js';
 
 /**
  * Create a new workspace and assign the creator as owner.
@@ -65,7 +68,26 @@ export const deleteWorkspace = async (workspaceId, userId) => {
     error.statusCode = 403;
     throw error;
   }
+
+  // Find all projects in this workspace
+  const projects = await Project.find({ workspace: workspaceId }).select('_id');
+  const projectIds = projects.map((p) => p._id);
+
+  if (projectIds.length > 0) {
+    // Delete all tasks associated with these projects
+    await Task.deleteMany({ project: { $in: projectIds } });
+
+    // Delete all project members associated with these projects
+    await ProjectMember.deleteMany({ project: { $in: projectIds } });
+
+    // Delete all projects in this workspace
+    await Project.deleteMany({ workspace: workspaceId });
+  }
+
+  // Delete all workspace members
   await WorkspaceMember.deleteMany({ workspace: workspaceId });
+
+  // Delete the workspace document
   await Workspace.findByIdAndDelete(workspaceId);
 };
 
@@ -88,7 +110,7 @@ export const getWorkspaceMembers = async (workspaceId, userId) => {
 /**
  * Invite a user to a workspace (owner/manager only).
  */
-export const inviteMember = async (workspaceId, inviterId, { userId, role = 'member' }) => {
+export const inviteMember = async (workspaceId, inviterId, { userIds, role = 'member' }) => {
   const inviterMembership = await WorkspaceMember.findOne({ workspace: workspaceId, user: inviterId });
   if (!inviterMembership || !['owner', 'manager'].includes(inviterMembership.role)) {
     const error = new Error('Forbidden: insufficient permissions');
@@ -96,19 +118,35 @@ export const inviteMember = async (workspaceId, inviterId, { userId, role = 'mem
     throw error;
   }
 
-  const existing = await WorkspaceMember.findOne({ workspace: workspaceId, user: userId });
-  if (existing) {
-    const error = new Error('User is already a member of this workspace');
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    const error = new Error('At least one user must be selected');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingMembers = await WorkspaceMember.find({
+    workspace: workspaceId,
+    user: { $in: userIds },
+  }).select('user');
+
+  const existingUserIds = new Set(existingMembers.map((m) => m.user.toString()));
+  const newIdsToInvite = userIds.filter((id) => !existingUserIds.has(id.toString()));
+
+  if (newIdsToInvite.length === 0) {
+    const error = new Error('All selected users are already members of this workspace');
     error.statusCode = 409;
     throw error;
   }
 
-  return WorkspaceMember.create({
+  const newMembers = newIdsToInvite.map((id) => ({
     workspace: workspaceId,
-    user: userId,
+    user: id,
     role,
     invitedBy: inviterId,
-  });
+  }));
+
+  const created = await WorkspaceMember.insertMany(newMembers);
+  return created;
 };
 
 /**

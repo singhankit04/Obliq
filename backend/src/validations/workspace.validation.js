@@ -26,7 +26,7 @@ export const workspaceIdSchema = z.object({
 
 export const inviteMemberSchema = z.object({
   body: z.object({
-    userId: z.string().length(24, 'Invalid user ID'),
+    userIds: z.array(z.string().length(24, 'Invalid user ID')),
     role: z.enum(['manager', 'member']).optional(),
   }),
   params: z.object({

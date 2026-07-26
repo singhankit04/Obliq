@@ -30,6 +30,8 @@ export default function DashboardLayout() {
   const [wsDesc, setWsDesc] = useState('');
   const [projName, setProjName] = useState('');
   const [projDesc, setProjDesc] = useState('');
+  const [projManagerId, setProjManagerId] = useState('');
+  const [workspaceMembers, setWorkspaceMembers] = useState([]);
 
   const [submittingWs, setSubmittingWs] = useState(false);
   const [submittingProj, setSubmittingProj] = useState(false);
@@ -57,6 +59,23 @@ export default function DashboardLayout() {
     }
   };
 
+  // Fetch workspace members when project modal opens
+  const handleOpenProjectModal = async () => {
+    setError('');
+    setProjName('');
+    setProjDesc('');
+    setProjManagerId('');
+    setShowProjectModal(true);
+    if (activeWorkspace) {
+      try {
+        const data = await api.getWorkspaceMembers(activeWorkspace._id);
+        setWorkspaceMembers(data.members || []);
+      } catch (err) {
+        console.error('Failed to load workspace members for manager selection', err);
+      }
+    }
+  };
+
   // Handle Project creation
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -65,10 +84,11 @@ export default function DashboardLayout() {
     setError('');
 
     try {
-      await api.createProject(activeWorkspace._id, projName, projDesc);
+      await api.createProject(activeWorkspace._id, projName, projDesc, projManagerId || null);
       await refreshProjects();
       setProjName('');
       setProjDesc('');
+      setProjManagerId('');
       setShowProjectModal(false);
     } catch (err) {
       setError(err.message || 'Failed to create project.');
@@ -172,7 +192,7 @@ export default function DashboardLayout() {
               <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Projects</span>
               {activeWorkspace && (
                 <button 
-                  onClick={() => setShowProjectModal(true)}
+                  onClick={handleOpenProjectModal}
                   className="p-1 hover:bg-slate-850 hover:text-purple-400 text-slate-500 rounded-lg transition-all"
                   title="Create Project"
                 >
@@ -370,6 +390,21 @@ export default function DashboardLayout() {
                   rows={3}
                   className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-sm resize-none"
                 />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-xs font-semibold mb-1">PROJECT MANAGER</label>
+                <select
+                  value={projManagerId}
+                  onChange={(e) => setProjManagerId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
+                >
+                  <option value="">Default: You ({user?.name || 'Creator'})</option>
+                  {workspaceMembers.filter(m => m.user).map((m) => (
+                    <option key={m.user._id} value={m.user._id}>
+                      {m.user.name} ({m.user.email})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button

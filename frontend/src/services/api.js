@@ -64,18 +64,18 @@ export const api = {
   updateWorkspace: (id, name, description) => apiInstance.patch(`/workspace/${id}`, { name, description }).then(res => res.data),
   deleteWorkspace: (id) => apiInstance.delete(`/workspace/${id}`).then(res => res.data),
   getWorkspaceMembers: (workspaceId) => apiInstance.get(`/workspace/${workspaceId}/members`).then(res => res.data),
-  inviteWorkspaceMember: (workspaceId, userId, role = 'member') => apiInstance.post(`/workspace/${workspaceId}/members`, { userId, role }).then(res => res.data),
+  inviteWorkspaceMember: (workspaceId, userIds, role = 'member') => apiInstance.post(`/workspace/${workspaceId}/members`, { userIds: Array.isArray(userIds) ? userIds : [userIds], role }).then(res => res.data),
   updateWorkspaceMemberRole: (workspaceId, memberId, role) => apiInstance.put(`/workspace/${workspaceId}/members/${memberId}`, { role }).then(res => res.data),
   removeWorkspaceMember: (workspaceId, memberId) => apiInstance.delete(`/workspace/${workspaceId}/members/${memberId}`).then(res => res.data),
 
   // Projects API
   getProjects: (workspaceId) => apiInstance.get(`/projects/workspace/${workspaceId}`).then(res => res.data),
-  createProject: (workspaceId, name, description) => apiInstance.post(`/projects/workspace/${workspaceId}`, { name, description }).then(res => res.data),
+  createProject: (workspaceId, name, description, managerId) => apiInstance.post(`/projects/workspace/${workspaceId}`, { name, description, managerId }).then(res => res.data),
   getProject: (projectId) => apiInstance.get(`/projects/${projectId}`).then(res => res.data),
   updateProject: (projectId, updates) => apiInstance.put(`/projects/${projectId}`, updates).then(res => res.data),
   deleteProject: (projectId) => apiInstance.delete(`/projects/${projectId}`).then(res => res.data),
   getProjectMembers: (projectId) => apiInstance.get(`/projects/${projectId}/members`).then(res => res.data),
-  addProjectMember: (projectId, userId, role = 'member') => apiInstance.post(`/projects/${projectId}/members`, { userId, role }).then(res => res.data),
+  addProjectMember: (projectId, userIds, role = 'member') => apiInstance.post(`/projects/${projectId}/members`, { userIds: Array.isArray(userIds) ? userIds : [userIds], role }).then(res => res.data),
   updateProjectMemberRole: (projectId, memberId, role) => apiInstance.put(`/projects/${projectId}/members/${memberId}`, { role }).then(res => res.data),
   removeProjectMember: (projectId, memberId) => apiInstance.delete(`/projects/${projectId}/members/${memberId}`).then(res => res.data),
 

@@ -37,10 +37,10 @@ export default function ProjectDetail() {
   const [taskPriority, setTaskPriority] = useState('medium');
   const [taskStatus, setTaskStatus] = useState('pending');
   const [taskDueDate, setTaskDueDate] = useState('');
-  const [taskAssignee, setTaskAssignee] = useState('');
+  const [taskAssignees, setTaskAssignees] = useState([]);
 
   // Form Fields for Project Members
-  const [selectedWorkspaceMemberId, setSelectedWorkspaceMemberId] = useState('');
+  const [selectedWorkspaceMemberIds, setSelectedWorkspaceMemberIds] = useState([]);
   const [memberRole, setMemberRole] = useState('member');
 
   // Load project details, tasks, and members
@@ -80,7 +80,7 @@ export default function ProjectDetail() {
     setTaskPriority('medium');
     setTaskStatus(status);
     setTaskDueDate('');
-    setTaskAssignee('');
+    setTaskAssignees([]);
     setShowTaskModal(true);
   };
 
@@ -99,7 +99,14 @@ export default function ProjectDetail() {
       setTaskDueDate('');
     }
     
-    setTaskAssignee(task.assignedTo?._id || task.assignedTo || '');
+    if (Array.isArray(task.assignedTo)) {
+      setTaskAssignees(task.assignedTo.map(u => (typeof u === 'object' ? u._id : u)));
+    } else if (task.assignedTo) {
+      const id = typeof task.assignedTo === 'object' ? task.assignedTo._id : task.assignedTo;
+      setTaskAssignees(id ? [id] : []);
+    } else {
+      setTaskAssignees([]);
+    }
     setShowTaskModal(true);
   };
 
@@ -115,7 +122,7 @@ export default function ProjectDetail() {
       priority: taskPriority,
       status: taskStatus,
       dueDate: taskDueDate ? new Date(taskDueDate).toISOString() : null,
-      assignedTo: taskAssignee || null,
+      assignedTo: taskAssignees,
     };
 
     try {
@@ -162,15 +169,15 @@ export default function ProjectDetail() {
   // Add Member to Project
   const handleAddProjectMember = async (e) => {
     e.preventDefault();
-    if (!selectedWorkspaceMemberId) return;
+    if (selectedWorkspaceMemberIds.length === 0) return;
     setSubmittingMember(true);
 
     try {
-      await api.addProjectMember(projectId, selectedWorkspaceMemberId, memberRole);
+      await api.addProjectMember(projectId, selectedWorkspaceMemberIds, memberRole);
       // Refresh project members
       const membersData = await api.getProjectMembers(projectId);
       setProjectMembers(membersData.members || []);
-      setSelectedWorkspaceMemberId('');
+      setSelectedWorkspaceMemberIds([]);
       setMemberRole('member');
     } catch (err) {
       alert(err.message || 'Failed to add project member.');
@@ -326,18 +333,25 @@ export default function ProjectDetail() {
                           </span>
                         </div>
 
-                        {/* Assignee Circle */}
-                        <div className="flex items-center gap-1.5">
-                          {task.assignedTo ? (
-                            <div 
-                              className="w-5 h-5 rounded-md bg-purple-600/10 border border-purple-500/20 flex items-center justify-center text-[10px] text-purple-400 font-bold"
-                              title={`Assigned to ${task.assignedTo.name || 'member'}`}
-                            >
-                              {(task.assignedTo.name || 'M').charAt(0).toUpperCase()}
-                            </div>
+                        {/* Assignees Avatars */}
+                        <div className="flex items-center -space-x-1.5 overflow-hidden">
+                          {Array.isArray(task.assignedTo) && task.assignedTo.length > 0 ? (
+                            task.assignedTo.map((assignee, idx) => {
+                              const name = typeof assignee === 'object' ? assignee?.name : 'User';
+                              const initial = name ? name.charAt(0).toUpperCase() : 'U';
+                              return (
+                                <div
+                                  key={typeof assignee === 'object' ? (assignee?._id || idx) : idx}
+                                  className="w-5 h-5 rounded-full bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-[9px] text-purple-300 font-bold shrink-0 shadow-sm"
+                                  title={`Assigned to ${name || 'member'}`}
+                                >
+                                  {initial}
+                                </div>
+                              );
+                            })
                           ) : (
                             <div 
-                              className="w-5 h-5 rounded-md bg-slate-950 flex items-center justify-center text-[10px] text-slate-600 border border-slate-800"
+                              className="w-5 h-5 rounded-full bg-slate-950 flex items-center justify-center text-[10px] text-slate-600 border border-slate-800"
                               title="Unassigned"
                             >
                               <User className="w-3 h-3" />
@@ -467,30 +481,51 @@ export default function ProjectDetail() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-400 text-xs font-semibold mb-1">DUE DATE</label>
-                  <input
-                    type="date"
-                    value={taskDueDate}
-                    onChange={(e) => setTaskDueDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 text-xs font-semibold mb-1">ASSIGNEE</label>
-                  <select
-                    value={taskAssignee}
-                    onChange={(e) => setTaskAssignee(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
-                  >
-                    <option value="">Unassigned</option>
-                    {projectMembers.filter(m => m.user).map((m) => (
-                      <option key={m.user._id} value={m.user._id}>
-                        {m.user.name}
-                      </option>
-                    ))}
-                  </select>
+              <div>
+                <label className="block text-slate-400 text-xs font-semibold mb-1">DUE DATE</label>
+                <input
+                  type="date"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 text-xs font-semibold mb-1">
+                  ASSIGNEES {taskAssignees.length > 0 && `(${taskAssignees.length} selected)`}
+                </label>
+                <div className="max-h-36 overflow-y-auto bg-slate-950/60 border border-slate-800 rounded-xl p-2 space-y-1">
+                  {projectMembers.filter(m => m.user).length === 0 ? (
+                    <p className="text-xs text-slate-500 p-1">No project members available</p>
+                  ) : (
+                    projectMembers.filter(m => m.user).map((m) => {
+                      const uId = m.user._id;
+                      const isSelected = taskAssignees.includes(uId);
+                      return (
+                        <label
+                          key={uId}
+                          className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                            isSelected ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <span className="font-medium">{m.user.name}</span>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTaskAssignees([...taskAssignees, uId]);
+                              } else {
+                                setTaskAssignees(taskAssignees.filter(id => id !== uId));
+                              }
+                            }}
+                            className="rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-900 cursor-pointer"
+                          />
+                        </label>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
@@ -538,44 +573,65 @@ export default function ProjectDetail() {
             {/* Add Member Form */}
             {hasEditRights && availableWorkspaceMembers.length > 0 && (
               <form onSubmit={handleAddProjectMember} className="mb-6 p-4 bg-slate-950/40 border border-slate-800 rounded-xl space-y-3">
-                <p className="text-xs font-semibold text-slate-350">ADD WORKSPACE MEMBER TO PROJECT</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="md:col-span-2">
-                    <select
-                      value={selectedWorkspaceMemberId}
-                      required
-                      onChange={(e) => setSelectedWorkspaceMemberId(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-xs cursor-pointer"
-                    >
-                      <option value="">Select a workspace member...</option>
-                      {availableWorkspaceMembers.filter(m => m.user).map((m) => (
-                        <option key={m.user._id} value={m.user._id}>
-                          {m.user.name} ({m.user.email})
-                        </option>
-                      ))}
-                    </select>
+                <p className="text-xs font-semibold text-slate-350">
+                  ADD WORKSPACE MEMBERS TO PROJECT {selectedWorkspaceMemberIds.length > 0 && `(${selectedWorkspaceMemberIds.length} selected)`}
+                </p>
+                <div className="space-y-3">
+                  <div className="max-h-36 overflow-y-auto bg-slate-950 border border-slate-800 rounded-xl p-2 space-y-1">
+                    {availableWorkspaceMembers.filter(m => m.user).map((m) => {
+                      const uId = m.user._id;
+                      const isSelected = selectedWorkspaceMemberIds.includes(uId);
+                      return (
+                        <label
+                          key={uId}
+                          className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                            isSelected ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' : 'text-slate-300 hover:bg-slate-850'
+                          }`}
+                        >
+                          <div>
+                            <span className="font-medium">{m.user.name}</span>
+                            <span className="text-[10px] text-slate-500 ml-1">({m.user.email})</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedWorkspaceMemberIds([...selectedWorkspaceMemberIds, uId]);
+                              } else {
+                                setSelectedWorkspaceMemberIds(selectedWorkspaceMemberIds.filter((id) => id !== uId));
+                              }
+                            }}
+                            className="rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-900 cursor-pointer"
+                          />
+                        </label>
+                      );
+                    })}
                   </div>
-                  <div>
-                    <select
-                      value={memberRole}
-                      onChange={(e) => setMemberRole(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-xs cursor-pointer"
+
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-slate-400">ASSIGN ROLE:</label>
+                      <select
+                        value={memberRole}
+                        onChange={(e) => setMemberRole(e.target.value)}
+                        className="px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-xs cursor-pointer"
+                      >
+                        <option value="member">Member</option>
+                        <option value="manager">Manager</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submittingMember || selectedWorkspaceMemberIds.length === 0}
+                      className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-slate-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg cursor-pointer"
                     >
-                      <option value="member">Member</option>
-                      <option value="manager">Manager</option>
-                      <option value="viewer">Viewer</option>
-                    </select>
+                      {submittingMember && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Add Selected ({selectedWorkspaceMemberIds.length})
+                    </button>
                   </div>
-                </div>
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="submit"
-                    disabled={submittingMember || !selectedWorkspaceMemberId}
-                    className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-slate-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg cursor-pointer"
-                  >
-                    {submittingMember && <Loader2 className="w-3 h-3 animate-spin" />}
-                    Add to Project
-                  </button>
                 </div>
               </form>
             )}

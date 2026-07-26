@@ -163,6 +163,7 @@ export const searchUsers = async (req, res, next) => {
       return res.status(400).json({ message: 'Email query parameter is required' });
     }
     const users = await authService.searchUsersByEmail(email);
+
     res.json({ users });
   } catch (error) {
     if (error.statusCode) {

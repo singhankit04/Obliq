@@ -5,6 +5,7 @@ export const createProjectSchema = z.object({
   body: z.object({
     name: z.string().min(2, 'Project name must be at least 2 characters').trim(),
     description: z.string().optional(),
+    managerId: z.string().length(24, 'Invalid manager user ID').optional(),
   }),
   params: z.object({
     workspaceId: z.string().length(24, 'Invalid workspace ID'),
@@ -30,7 +31,7 @@ export const projectIdSchema = z.object({
 
 export const addProjectMemberSchema = z.object({
   body: z.object({
-    userId: z.string().length(24, 'Invalid user ID'),
+    userIds: z.array(z.string().length(24, 'Invalid user ID')),
     role: z.enum(['manager', 'member', 'viewer']).optional(),
   }),
   params: z.object({

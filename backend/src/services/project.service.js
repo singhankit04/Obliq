@@ -1,6 +1,7 @@
 import Project from '../models/project.model.js';
 import ProjectMember from '../models/projectMember.model.js';
 import WorkspaceMember from '../models/workspaceMember.model.js';
+import Task from '../models/task.model.js';
 
 /**
  * Helper: assert that the user is a member of the workspace.
@@ -18,7 +19,7 @@ const assertWorkspaceMember = async (workspaceId, userId) => {
 /**
  * Create a new project in a workspace (workspace owner/manager only).
  */
-export const createProject = async (workspaceId, creatorId, { name, description }) => {
+export const createProject = async (workspaceId, creatorId, { name, description, managerId }) => {
   const membership = await assertWorkspaceMember(workspaceId, creatorId);
   if (!['owner', 'manager'].includes(membership.role)) {
     const error = new Error('Forbidden: only workspace owner or manager can create projects');
@@ -26,20 +27,37 @@ export const createProject = async (workspaceId, creatorId, { name, description 
     throw error;
   }
 
+  const targetManagerId = managerId || creatorId;
+
+  // Verify chosen manager is a member of the workspace
+  if (targetManagerId.toString() !== creatorId.toString()) {
+    await assertWorkspaceMember(workspaceId, targetManagerId);
+  }
+
   const project = await Project.create({
     workspace: workspaceId,
     name,
     description,
-    manager: creatorId,
+    manager: targetManagerId,
   });
 
-  // Auto-add creator as project manager
+  // Auto-add chosen manager as project manager
   await ProjectMember.create({
     project: project._id,
-    user: creatorId,
+    user: targetManagerId,
     role: 'manager',
-    invitedBy: null,
+    invitedBy: creatorId,
   });
+
+  // If creator is different from chosen manager, also auto-add creator as project manager
+  if (targetManagerId.toString() !== creatorId.toString()) {
+    await ProjectMember.create({
+      project: project._id,
+      user: creatorId,
+      role: 'manager',
+      invitedBy: creatorId,
+    });
+  }
 
   return project;
 };
@@ -48,8 +66,21 @@ export const createProject = async (workspaceId, creatorId, { name, description 
  * Get all projects in a workspace the user has access to.
  */
 export const getWorkspaceProjects = async (workspaceId, userId) => {
-  await assertWorkspaceMember(workspaceId, userId);
-  return Project.find({ workspace: workspaceId }).lean();
+  const workspaceMembership = await assertWorkspaceMember(workspaceId, userId);
+
+  // Workspace owners & workspace managers can view all workspace projects
+  if (['owner', 'manager'].includes(workspaceMembership.role)) {
+    return Project.find({ workspace: workspaceId }).lean();
+  }
+
+  // Regular members can only view projects in which they are a ProjectMember
+  const projectMemberships = await ProjectMember.find({ user: userId }).select('project');
+  const userProjectIds = projectMemberships.map((pm) => pm.project);
+
+  return Project.find({
+    workspace: workspaceId,
+    _id: { $in: userProjectIds },
+  }).lean();
 };
 
 /**
@@ -62,11 +93,19 @@ export const getProjectById = async (projectId, userId) => {
     error.statusCode = 404;
     throw error;
   }
-  // Verify the user is a workspace member or a project member
-  const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
+
   const workspaceMembership = await WorkspaceMember.findOne({ workspace: project.workspace, user: userId });
-  if (!projectMembership && !workspaceMembership) {
+  if (!workspaceMembership) {
     const error = new Error('Access denied');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const isWorkspaceAdmin = ['owner', 'manager'].includes(workspaceMembership.role);
+  const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
+
+  if (!projectMembership && !isWorkspaceAdmin) {
+    const error = new Error('Access denied: you are not a member of this project');
     error.statusCode = 403;
     throw error;
   }
@@ -122,6 +161,7 @@ export const deleteProject = async (projectId, userId) => {
     throw error;
   }
 
+  await Task.deleteMany({ project: projectId });
   await ProjectMember.deleteMany({ project: projectId });
   await Project.findByIdAndDelete(projectId);
 };
@@ -136,8 +176,16 @@ export const getProjectMembers = async (projectId, userId) => {
     error.statusCode = 404;
     throw error;
   }
-  await assertWorkspaceMember(project.workspace, userId);
 
+  const workspaceMembership = await assertWorkspaceMember(project.workspace, userId);
+  const isWorkspaceAdmin = ['owner', 'manager'].includes(workspaceMembership.role);
+  const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
+
+  if (!projectMembership && !isWorkspaceAdmin) {
+    const error = new Error('Access denied: you are not a member of this project');
+    error.statusCode = 403;
+    throw error;
+  }
   return ProjectMember.find({ project: projectId })
     .populate('user', 'name email')
     .populate('invitedBy', 'name email')
@@ -147,7 +195,7 @@ export const getProjectMembers = async (projectId, userId) => {
 /**
  * Add a member to a project (project manager or workspace owner/manager).
  */
-export const addProjectMember = async (projectId, inviterId, { userId, role = 'member' }) => {
+export const addProjectMember = async (projectId, inviterId, { userIds, role = 'member' }) => {
   const project = await Project.findById(projectId);
   if (!project) {
     const error = new Error('Project not found');
@@ -167,22 +215,49 @@ export const addProjectMember = async (projectId, inviterId, { userId, role = 'm
     throw error;
   }
 
-  // Invitee must be a workspace member
-  await assertWorkspaceMember(project.workspace, userId);
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    const error = new Error('At least one user must be selected');
+    error.statusCode = 400;
+    throw error;
+  }
 
-  const existing = await ProjectMember.findOne({ project: projectId, user: userId });
-  if (existing) {
-    const error = new Error('User is already a member of this project');
+  // Ensure invitees belong to workspace
+  const wsMemberships = await WorkspaceMember.find({
+    workspace: project.workspace,
+    user: { $in: userIds },
+  }).select('user');
+
+  const validWsUserIds = new Set(wsMemberships.map((m) => m.user.toString()));
+  const validIds = userIds.filter((id) => validWsUserIds.has(id.toString()));
+
+  if (validIds.length === 0) {
+    const error = new Error('Selected users must be members of the workspace first');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingMembers = await ProjectMember.find({
+    project: projectId,
+    user: { $in: validIds },
+  }).select('user');
+
+  const existingUserIds = new Set(existingMembers.map((m) => m.user.toString()));
+  const newIdsToAdd = validIds.filter((id) => !existingUserIds.has(id.toString()));
+
+  if (newIdsToAdd.length === 0) {
+    const error = new Error('All selected users are already members of this project');
     error.statusCode = 409;
     throw error;
   }
 
-  return ProjectMember.create({
+  const newMembers = newIdsToAdd.map((id) => ({
     project: projectId,
-    user: userId,
+    user: id,
     role,
     invitedBy: inviterId,
-  });
+  }));
+
+  return ProjectMember.insertMany(newMembers);
 };
 
 /**
