@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { 
-  Plus, Calendar, User, Trash2, Edit2, CheckCircle2, 
-  Clock, AlertTriangle, ArrowRightLeft, X, Loader2, Users,
-  FolderOpen, Shield, Trash, BadgeAlert
+  Plus, Calendar, User, Trash2, Edit2, 
+  X, Loader2, Users,
+  FolderOpen, Shield, Trash
 } from 'lucide-react';
 
 export default function ProjectDetail() {
@@ -22,7 +22,6 @@ export default function ProjectDetail() {
   
   // Loading States
   const [loading, setLoading] = useState(true);
-  const [loadingMembers, setLoadingMembers] = useState(false);
   const [submittingTask, setSubmittingTask] = useState(false);
   const [submittingMember, setSubmittingMember] = useState(false);
 
@@ -44,33 +43,31 @@ export default function ProjectDetail() {
   const [memberRole, setMemberRole] = useState('member');
 
   // Load project details, tasks, and members
-  const fetchData = async () => {
+  useEffect(() => {
     if (!projectId) return;
-    setLoading(true);
-    try {
-      const [projData, taskData, membersData, wsMembersData] = await Promise.all([
-        api.getProject(projectId),
-        api.getTasks(projectId),
-        api.getProjectMembers(projectId),
-        activeWorkspace ? api.getWorkspaceMembers(activeWorkspace._id) : { members: [] }
-      ]);
-      
+    let isMounted = true;
+    queueMicrotask(() => {
+      if (isMounted) setLoading(true);
+    });
+    Promise.all([
+      api.getProject(projectId),
+      api.getTasks(projectId),
+      api.getProjectMembers(projectId),
+      activeWorkspace ? api.getWorkspaceMembers(activeWorkspace._id) : { members: [] }
+    ]).then(([projData, taskData, membersData, wsMembersData]) => {
+      if (!isMounted) return;
       setProject(projData.project);
       setTasks(taskData.tasks || []);
       setProjectMembers(membersData.members || []);
       setWorkspaceMembers(wsMembersData.members || []);
-    } catch (err) {
+    }).catch((err) => {
       console.error('Failed to load project details:', err);
-      // Navigate to dashboard if project not found
-      navigate('/');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [projectId, activeWorkspace]);
+      if (isMounted) navigate('/');
+    }).finally(() => {
+      if (isMounted) setLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, [projectId, activeWorkspace, navigate]);
 
   // Open task modal for creation
   const handleOpenCreateTaskModal = (status = 'pending') => {
@@ -312,9 +309,12 @@ export default function ProjectDetail() {
                       <div>
                         {/* Title & Actions */}
                         <div className="flex items-start justify-between gap-2 mt-1">
-                          <h4 className="font-bold text-slate-200 text-sm leading-snug group-hover:text-purple-400 transition-colors">
+                          <Link
+                            to={`/project/${projectId}/task/${task._id}`}
+                            className="font-bold text-[var(--text-primary)] text-sm leading-snug hover:text-[var(--accent-primary)] transition-colors"
+                          >
                             {task.title}
-                          </h4>
+                          </Link>
                         </div>
                         {task.description && (
                           <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">

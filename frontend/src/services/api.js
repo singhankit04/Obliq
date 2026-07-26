@@ -81,6 +81,7 @@ export const api = {
 
   // Tasks API
   getTasks: (projectId) => apiInstance.get(`/tasks/project/${projectId}`).then(res => res.data),
+  getTaskById: (taskId) => apiInstance.get(`/tasks/${taskId}`).then(res => res.data),
   createTask: (projectId, taskData) => apiInstance.post(`/tasks/project/${projectId}`, taskData).then(res => res.data),
   updateTask: (taskId, taskData) => apiInstance.put(`/tasks/${taskId}`, taskData).then(res => res.data),
   deleteTask: (taskId) => apiInstance.delete(`/tasks/${taskId}`).then(res => res.data),

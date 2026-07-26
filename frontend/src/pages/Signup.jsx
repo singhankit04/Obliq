@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -9,7 +9,9 @@ export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '']);
+  const [secondsLeft, setSecondsLeft] = useState(600);
+  const otpRefs = useRef([]);
   
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -18,7 +20,7 @@ export default function Signup() {
   const { signup, googleLogin } = useAuth();
   const navigate = useNavigate();
 
-  const handleGoogleCallback = async (response) => {
+  const handleGoogleCallback = useCallback(async (response) => {
     setError('');
     setSubmitting(true);
     try {
@@ -29,7 +31,7 @@ export default function Signup() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [googleLogin, navigate]);
 
   useEffect(() => {
     if (step !== 1) return;
@@ -64,7 +66,13 @@ export default function Signup() {
     }, 200);
 
     return () => clearInterval(interval);
-  }, [step]);
+  }, [step, handleGoogleCallback]);
+
+  useEffect(() => {
+    if (step !== 2 || secondsLeft <= 0) return undefined;
+    const timer = window.setInterval(() => setSecondsLeft((current) => current - 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [step, secondsLeft]);
 
   // Send OTP and transition to step 2
   const handleSendOtp = async (e) => {
@@ -81,6 +89,8 @@ export default function Signup() {
     try {
       await api.sendOtp(email);
       setSuccess('A 4-digit OTP has been sent to your email.');
+      setOtpDigits(['', '', '', '']);
+      setSecondsLeft(600);
       setStep(2);
     } catch (err) {
       setError(err.message || 'Failed to send verification email.');
@@ -97,7 +107,7 @@ export default function Signup() {
 
     try {
       // 1. Verify OTP
-      await api.verifyOtp(email, otp);
+      await api.verifyOtp(email, otpDigits.join(''));
       
       // 2. Complete Signup
       await signup(name, email, password);
@@ -109,6 +119,45 @@ export default function Signup() {
       setSubmitting(false);
     }
   };
+
+  const handleOtpChange = (index, value) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const next = [...otpDigits];
+    next[index] = digit;
+    setOtpDigits(next);
+    if (digit && index < otpRefs.current.length - 1) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (index, event) => {
+    if (event.key === 'Backspace' && !otpDigits[index] && index > 0) otpRefs.current[index - 1]?.focus();
+  };
+
+  const handleOtpPaste = (event) => {
+    event.preventDefault();
+    const digits = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4).split('');
+    if (!digits.length) return;
+    setOtpDigits([...digits, ...Array(4 - digits.length).fill('')]);
+    otpRefs.current[Math.min(digits.length, 4) - 1]?.focus();
+  };
+
+  const handleResendOtp = async () => {
+    setError('');
+    setSuccess('');
+    setSubmitting(true);
+    try {
+      await api.sendOtp(email);
+      setOtpDigits(['', '', '', '']);
+      setSecondsLeft(600);
+      setSuccess('A fresh verification code is on its way.');
+      otpRefs.current[0]?.focus();
+    } catch (err) {
+      setError(err.message || 'Could not resend your code.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formattedTime = `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(secondsLeft % 60).padStart(2, '0')}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b0f19] px-4 relative overflow-hidden">
@@ -245,39 +294,31 @@ export default function Signup() {
       ) : (
           <form onSubmit={handleVerifyAndSignup} className="space-y-5">
             <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5" htmlFor="otp">
-                Enter 4-Digit OTP
-              </label>
-              <div className="relative">
-                <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  id="otp"
-                  type="text"
-                  maxLength={4}
-                  required
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="e.g. 1234"
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-center font-bold tracking-widest text-lg"
-                />
+              <div className="flex items-center justify-between">
+                <label className="block text-slate-300 text-sm font-medium" htmlFor="otp-0">Enter verification code</label>
+                <span className="flex items-center gap-1 text-xs font-medium text-slate-500"><Key className="h-3.5 w-3.5" />{formattedTime}</span>
               </div>
-              <p className="text-xs text-slate-500 mt-2 text-center">
-                Didn't receive the code?{' '}
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setError('');
-                    setSuccess('');
-                    try {
-                      await api.sendOtp(email);
-                      setSuccess('OTP resent successfully!');
-                    } catch (err) {
-                      setError(err.message || 'Failed to resend OTP.');
-                    }
-                  }}
-                  className="text-purple-400 hover:text-purple-300 underline focus:outline-none"
-                >
-                  Resend OTP
+              <p className="mt-1 text-xs text-slate-500">We sent a 4-digit code to {email}.</p>
+              <div className="mt-4 flex justify-between gap-3" onPaste={handleOtpPaste}>
+                {otpDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(element) => { otpRefs.current[index] = element; }}
+                    id={`otp-${index}`}
+                    inputMode="numeric"
+                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    aria-label={`Verification digit ${index + 1}`}
+                    value={digit}
+                    onChange={(event) => handleOtpChange(index, event.target.value)}
+                    onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                    className="h-14 min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-950/50 text-center text-xl font-bold text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20"
+                  />
+                ))}
+              </div>
+              <p className="mt-4 text-center text-xs text-slate-500">
+                Didn&apos;t receive it?{' '}
+                <button type="button" onClick={handleResendOtp} disabled={submitting || secondsLeft > 540} className="font-semibold text-indigo-300 transition hover:text-indigo-200 disabled:cursor-not-allowed disabled:text-slate-600">
+                  {secondsLeft > 540 ? `Resend in ${formattedTime}` : 'Resend code'}
                 </button>
               </p>
             </div>
@@ -298,7 +339,7 @@ export default function Signup() {
 
               <button
                 type="submit"
-                disabled={submitting || otp.length !== 4}
+                disabled={submitting || otpDigits.join('').length !== 4}
                 className="flex-[2] py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-slate-100 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/20 text-sm"
               >
                 {submitting ? (

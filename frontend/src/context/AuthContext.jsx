@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useEffect, useContext } from 'react';
 import { api } from '../services/api';
 
@@ -10,6 +11,11 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
+  const handleLogoutState = () => {
+    setUser(null);
+    localStorage.removeItem('obliq_user');
+  };
+
   useEffect(() => {
     // Validate session on mount
     const checkSession = async () => {
@@ -17,7 +23,7 @@ export const AuthProvider = ({ children }) => {
         try {
           // If we can fetch workspaces, our session is valid
           await api.getWorkspaces();
-        } catch (err) {
+        } catch {
           // Session is invalid or expired
           handleLogoutState();
         }
@@ -34,12 +40,7 @@ export const AuthProvider = ({ children }) => {
 
     window.addEventListener('auth-logout', handleGlobalLogout);
     return () => window.removeEventListener('auth-logout', handleGlobalLogout);
-  }, []);
-
-  const handleLogoutState = () => {
-    setUser(null);
-    localStorage.removeItem('obliq_user');
-  };
+  }, [user]);
 
   const login = async (email, password) => {
     const data = await api.login(email, password);
@@ -69,7 +70,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await api.logout();
-    } catch (err) {
+    } catch {
       // Ignore network errors on logout
     } finally {
       handleLogoutState();
@@ -90,3 +91,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

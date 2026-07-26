@@ -1,4 +1,5 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
 
@@ -11,31 +12,27 @@ export const WorkspaceProvider = ({ children }) => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const data = await api.getWorkspaces();
       setWorkspaces(data.workspaces || []);
-      
-      // If we don't have an active workspace, select the first one
       if (data.workspaces && data.workspaces.length > 0) {
-        // Keep selected workspace if it still exists
-        const currentActive = activeWorkspace 
-          ? data.workspaces.find(w => w._id === activeWorkspace._id) 
-          : null;
-        setActiveWorkspace(currentActive || data.workspaces[0]);
+        setActiveWorkspace((prev) => {
+          const currentActive = prev 
+            ? data.workspaces.find((w) => w._id === prev._id) 
+            : null;
+          return currentActive || data.workspaces[0];
+        });
       } else {
         setActiveWorkspace(null);
       }
     } catch (err) {
       console.error('Failed to load workspaces:', err);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     if (!activeWorkspace || !activeWorkspace._id) {
       setProjects([]);
       return;
@@ -46,16 +43,49 @@ export const WorkspaceProvider = ({ children }) => {
     } catch (err) {
       console.error('Failed to load projects:', err);
     }
-  };
+  }, [activeWorkspace]);
 
   // Reload workspaces on user login/change
   useEffect(() => {
-    fetchWorkspaces();
+    if (!user) return;
+    let isMounted = true;
+    queueMicrotask(() => {
+      if (isMounted) setLoading(true);
+    });
+    api.getWorkspaces()
+      .then((data) => {
+        if (!isMounted) return;
+        setWorkspaces(data.workspaces || []);
+        if (data.workspaces && data.workspaces.length > 0) {
+          setActiveWorkspace((prev) => {
+            const currentActive = prev 
+              ? data.workspaces.find((w) => w._id === prev._id) 
+              : null;
+            return currentActive || data.workspaces[0];
+          });
+        } else {
+          setActiveWorkspace(null);
+        }
+      })
+      .catch((err) => console.error('Failed to load workspaces:', err))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => { isMounted = false; };
   }, [user]);
 
   // Reload projects whenever the active workspace changes
   useEffect(() => {
-    fetchProjects();
+    if (!activeWorkspace || !activeWorkspace._id) {
+      return;
+    }
+    let isMounted = true;
+    api.getProjects(activeWorkspace._id)
+      .then((data) => {
+        if (isMounted) setProjects(data.projects || []);
+      })
+      .catch((err) => console.error('Failed to load projects:', err));
+    return () => { isMounted = false; };
   }, [activeWorkspace]);
 
   return (

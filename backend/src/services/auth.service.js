@@ -10,9 +10,11 @@ import redis from '../config/redis.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sendEmail } from '../config/mailer.js';
+import { sendEmail } from '../utils/mailer.js';
 import { renderOtpEmail, renderResetPasswordEmail } from '../templates/index.js';
 import { recordOtpRequest, recordFailedLogin, clearFailedLogins, recordFailedOtpVerify } from '../middlewares/rateLimiter.middleware.js';
+import { addWelcomeEmailJob } from '../queues/email.queue.js';
+
 
 // Internal helpers
 const generateTokens = (userId, sessionId) => {
@@ -145,6 +147,11 @@ export const registerUser = async ({ name, email, password, userAgent, ip }) => 
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 
   await redis.del(`otp:${email}`);
+
+  // Dispatch Welcome Email Job to BullMQ Queue (Non-blocking background execution)
+  addWelcomeEmailJob({ email: user.email, name: user.name }).catch((err) => {
+    console.error('Failed to queue welcome email:', err);
+  });
 
   return {
     user: { name: user.name, email: user.email },

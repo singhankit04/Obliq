@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
@@ -12,7 +12,7 @@ export default function Login() {
   const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
-  const handleGoogleCallback = async (response) => {
+  const handleGoogleCallback = useCallback(async (response) => {
     setError('');
     setSubmitting(true);
     try {
@@ -23,12 +23,12 @@ export default function Login() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [googleLogin, navigate]);
 
   useEffect(() => {
     const initializeGoogleSignIn = () => {
       if (window.google?.accounts?.id) {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ;
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         
         window.google.accounts.id.initialize({
           client_id: clientId,
@@ -56,7 +56,7 @@ export default function Login() {
     }, 200);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [handleGoogleCallback]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
