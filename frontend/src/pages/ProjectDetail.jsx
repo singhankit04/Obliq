@@ -5,9 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { 
   Plus, Calendar, User, Trash2, Edit2, 
-  X, Loader2, Users,
+  X, Loader2, Users, MessageSquare, ExternalLink,
   FolderOpen, Shield, Trash
 } from 'lucide-react';
+import CommentSection from '../components/comments/CommentSection';
 
 export default function ProjectDetail() {
   const { projectId } = useParams();
@@ -28,6 +29,7 @@ export default function ProjectDetail() {
   // Modals & Panels State
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null); // If set, we are editing. If null, creating.
+  const [taskModalTab, setTaskModalTab] = useState('details'); // 'details' | 'comments'
   const [showMembersModal, setShowMembersModal] = useState(false);
 
   // Form Fields for Tasks
@@ -78,11 +80,12 @@ export default function ProjectDetail() {
     setTaskStatus(status);
     setTaskDueDate('');
     setTaskAssignees([]);
+    setTaskModalTab('details');
     setShowTaskModal(true);
   };
 
-  // Open task modal for editing
-  const handleOpenEditTaskModal = (task) => {
+  // Open task modal for editing or commenting
+  const handleOpenEditTaskModal = (task, tab = 'details') => {
     setSelectedTask(task);
     setTaskTitle(task.title);
     setTaskDesc(task.description || '');
@@ -104,6 +107,7 @@ export default function ProjectDetail() {
     } else {
       setTaskAssignees([]);
     }
+    setTaskModalTab(tab);
     setShowTaskModal(true);
   };
 
@@ -325,12 +329,27 @@ export default function ProjectDetail() {
 
                       {/* Meta info bottom */}
                       <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-850">
-                        {/* Due Date Indicator */}
-                        <div className="flex items-center gap-1 text-[10px] text-slate-550">
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>
-                            {task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : 'No date'}
-                          </span>
+                        {/* Due Date & Comment Indicator */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 text-[10px] text-slate-550">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>
+                              {task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : 'No date'}
+                            </span>
+                          </div>
+
+                          {/* Comment Button / Badge */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditTaskModal(task, 'comments');
+                            }}
+                            className="flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 px-2 py-0.5 rounded-lg transition-all cursor-pointer font-medium"
+                            title="View & Add Comments"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                            <span>{task.commentCount || 0}</span>
+                          </button>
                         </div>
 
                         {/* Assignees Avatars */}
@@ -390,7 +409,14 @@ export default function ProjectDetail() {
                         </div>
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => handleOpenEditTaskModal(task)}
+                            onClick={() => handleOpenEditTaskModal(task, 'comments')}
+                            className="p-1 hover:bg-purple-500/20 text-purple-400 rounded transition-all flex items-center gap-1 text-[10px]"
+                            title="Comment on task"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditTaskModal(task, 'details')}
                             className="p-1 hover:bg-slate-800 hover:text-purple-400 text-slate-500 rounded transition-all"
                             title="Edit task"
                           >
@@ -415,138 +441,201 @@ export default function ProjectDetail() {
         })}
       </div>
 
-      {/* TASK MODAL (Create & Edit) */}
+      {/* TASK MODAL (Create, Edit & Comments) */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl animate-slide-in relative">
+          <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl animate-slide-in relative max-h-[90vh] flex flex-col">
             <button 
               onClick={() => setShowTaskModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-200"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             
-            <h3 className="text-lg font-bold text-slate-100 mb-6">
-              {selectedTask ? 'Edit Task Details' : 'Create New Task'}
-            </h3>
-
-            <form onSubmit={handleTaskSubmit} className="space-y-4">
-              <div>
-                <label className="block text-slate-400 text-xs font-semibold mb-1">TASK TITLE</label>
-                <input
-                  type="text"
-                  required
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                  placeholder="What needs to be done?"
-                  className="w-full px-3 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 text-xs font-semibold mb-1">DESCRIPTION (OPTIONAL)</label>
-                <textarea
-                  value={taskDesc}
-                  onChange={(e) => setTaskDesc(e.target.value)}
-                  placeholder="Provide details about the task..."
-                  rows={3}
-                  className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 text-sm resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-400 text-xs font-semibold mb-1">PRIORITY</label>
-                  <select
-                    value={taskPriority}
-                    onChange={(e) => setTaskPriority(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-400 text-xs font-semibold mb-1">STATUS</label>
-                  <select
-                    value={taskStatus}
-                    onChange={(e) => setTaskStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 text-xs font-semibold mb-1">DUE DATE</label>
-                <input
-                  type="date"
-                  value={taskDueDate}
-                  onChange={(e) => setTaskDueDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 text-xs font-semibold mb-1">
-                  ASSIGNEES {taskAssignees.length > 0 && `(${taskAssignees.length} selected)`}
-                </label>
-                <div className="max-h-36 overflow-y-auto bg-slate-950/60 border border-slate-800 rounded-xl p-2 space-y-1">
-                  {projectMembers.filter(m => m.user).length === 0 ? (
-                    <p className="text-xs text-slate-500 p-1">No project members available</p>
-                  ) : (
-                    projectMembers.filter(m => m.user).map((m) => {
-                      const uId = m.user._id;
-                      const isSelected = taskAssignees.includes(uId);
-                      return (
-                        <label
-                          key={uId}
-                          className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                            isSelected ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' : 'text-slate-300 hover:bg-slate-800/60'
-                          }`}
-                        >
-                          <span className="font-medium">{m.user.name}</span>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setTaskAssignees([...taskAssignees, uId]);
-                              } else {
-                                setTaskAssignees(taskAssignees.filter(id => id !== uId));
-                              }
-                            }}
-                            className="rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-900 cursor-pointer"
-                          />
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
+            {/* Modal Navigation Tabs */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-5 pr-8">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowTaskModal(false)}
-                  className="px-4 py-2 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                  onClick={() => setTaskModalTab('details')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    taskModalTab === 'details'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
                 >
-                  Cancel
+                  {selectedTask ? 'Task Details' : 'New Task'}
                 </button>
-                <button
-                  type="submit"
-                  disabled={submittingTask}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-slate-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-purple-900/20 cursor-pointer"
-                >
-                  {submittingTask && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  {selectedTask ? 'Save Changes' : 'Create Task'}
-                </button>
+                {selectedTask && (
+                  <button
+                    type="button"
+                    onClick={() => setTaskModalTab('comments')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      taskModalTab === 'comments'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Comments</span>
+                    <span className="ml-1 px-1.5 py-0.5 bg-purple-950/80 text-purple-300 border border-purple-500/30 text-[10px] rounded-full">
+                      {selectedTask.commentCount || 0}
+                    </span>
+                  </button>
+                )}
               </div>
-            </form>
+
+              {selectedTask && (
+                <Link
+                  to={`/project/${projectId}/task/${selectedTask._id}`}
+                  className="flex items-center gap-1 text-xs font-medium text-purple-400 hover:text-purple-300 hover:underline"
+                  title="Open full page view of this task"
+                >
+                  <span>Full View</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+
+            {/* TAB CONTENT: Comments */}
+            {selectedTask && taskModalTab === 'comments' ? (
+              <div className="overflow-y-auto pr-1 flex-1 min-h-[350px]">
+                <CommentSection
+                  taskId={selectedTask._id}
+                  projectId={projectId}
+                  currentUser={currentUser}
+                  onCommentCountChange={(count) => {
+                    setSelectedTask(prev => {
+                      if (!prev || prev.commentCount === count) return prev;
+                      return { ...prev, commentCount: count };
+                    });
+                    setTasks(prev => prev.map(t => {
+                      if (t._id !== selectedTask._id || t.commentCount === count) return t;
+                      return { ...t, commentCount: count };
+                    }));
+                  }}
+                />
+              </div>
+            ) : (
+              /* TAB CONTENT: Task Details Form */
+              <form onSubmit={handleTaskSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1">
+                <div>
+                  <label className="block text-slate-400 text-xs font-semibold mb-1">TASK TITLE</label>
+                  <input
+                    type="text"
+                    required
+                    value={taskTitle}
+                    onChange={(e) => setTaskTitle(e.target.value)}
+                    placeholder="What needs to be done?"
+                    className="w-full px-3 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 text-xs font-semibold mb-1">DESCRIPTION (OPTIONAL)</label>
+                  <textarea
+                    value={taskDesc}
+                    onChange={(e) => setTaskDesc(e.target.value)}
+                    placeholder="Provide details about the task..."
+                    rows={3}
+                    className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 text-sm resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 text-xs font-semibold mb-1">PRIORITY</label>
+                    <select
+                      value={taskPriority}
+                      onChange={(e) => setTaskPriority(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-xs font-semibold mb-1">STATUS</label>
+                    <select
+                      value={taskStatus}
+                      onChange={(e) => setTaskStatus(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in-progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 text-xs font-semibold mb-1">DUE DATE</label>
+                  <input
+                    type="date"
+                    value={taskDueDate}
+                    onChange={(e) => setTaskDueDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 text-sm cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 text-xs font-semibold mb-1">
+                    ASSIGNEES {taskAssignees.length > 0 && `(${taskAssignees.length} selected)`}
+                  </label>
+                  <div className="max-h-36 overflow-y-auto bg-slate-950/60 border border-slate-800 rounded-xl p-2 space-y-1">
+                    {projectMembers.filter(m => m.user).length === 0 ? (
+                      <p className="text-xs text-slate-500 p-1">No project members available</p>
+                    ) : (
+                      projectMembers.filter(m => m.user).map((m) => {
+                        const uId = m.user._id;
+                        const isSelected = taskAssignees.includes(uId);
+                        return (
+                          <label
+                            key={uId}
+                            className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                              isSelected ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30' : 'text-slate-300 hover:bg-slate-800/60'
+                            }`}
+                          >
+                            <span className="font-medium">{m.user.name}</span>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setTaskAssignees([...taskAssignees, uId]);
+                                } else {
+                                  setTaskAssignees(taskAssignees.filter(id => id !== uId));
+                                }
+                              }}
+                              className="rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-900 cursor-pointer"
+                            />
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskModal(false)}
+                    className="px-4 py-2 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTask}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-slate-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-purple-900/20 cursor-pointer"
+                  >
+                    {submittingTask && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {selectedTask ? 'Save Changes' : 'Create Task'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

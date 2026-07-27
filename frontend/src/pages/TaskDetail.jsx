@@ -25,6 +25,8 @@ import { ReactionBar } from '../components/ui/EmojiPicker';
 import MentionDropdown from '../components/ui/MentionDropdown';
 import FilePreview, { UploadZone } from '../components/ui/FilePreview';
 import RichTextToolbar from '../components/ui/RichTextToolbar';
+import CommentSection from '../components/comments/CommentSection';
+
 
 // ─── MOCK DATA ──────────────────────────────────────────────
 const MOCK_COMMENTS = [
@@ -640,210 +642,14 @@ const generateToken = (userId) => {
           {/* ── Comments Section ── */}
           <div className={`${mobileTab !== 'details' && mobileTab !== 'comments' ? 'hidden lg:block' : ''}`}>
             <div className="p-5 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-2xl">
-              <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                <MessageSquare className="w-3.5 h-3.5" />
-                Comments ({comments.length})
-              </h3>
-
-              {/* Comment Composer */}
-              <div className="mb-6 border border-[var(--border-primary)] rounded-xl overflow-hidden focus-within:border-[var(--accent-primary)]/50 transition-colors bg-[var(--bg-elevated)]">
-                <div className="relative">
-                  <textarea
-                    ref={commentInputRef}
-                    value={newComment}
-                    onChange={handleCommentInput}
-                    onInput={handleTextareaResize}
-                    placeholder="Write a comment... Use @ to mention someone"
-                    rows={3}
-                    className="w-full px-4 py-3 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none focus:outline-none"
-                  />
-                  {/* Mention dropdown */}
-                  {showMentionDropdown && (
-                    <div className="absolute bottom-full left-4 mb-1 z-50">
-                      <MentionDropdown
-                        users={MOCK_MEMBERS}
-                        searchTerm={mentionSearch}
-                        onSelect={handleMentionSelect}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <RichTextToolbar onAction={() => {}} />
-                  <div className="px-2 py-1.5">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={Send}
-                      onClick={handleAddComment}
-                      disabled={!newComment.trim()}
-                    >
-                      Send
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Typing Indicator */}
-              <TypingIndicator userName="Rahul" />
-
-              {/* Comments List */}
-              <div className="space-y-0 divide-y divide-[var(--border-secondary)]">
-                {comments.length === 0 ? (
-                  <EmptyState
-                    icon={MessageSquare}
-                    title="No comments yet"
-                    description="Start the conversation by adding a comment above."
-                  />
-                ) : (
-                  comments.map((comment) => (
-                    <div key={comment.id} className="py-4 first:pt-0">
-                      {/* Comment */}
-                      <div className="flex gap-3">
-                        <Avatar name={comment.user.name} size="sm" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-[var(--text-primary)]">{comment.user.name}</span>
-                            <Badge variant="neutral" size="xs">{comment.user.role}</Badge>
-                            <span className="text-[10px] text-[var(--text-muted)]">{comment.timestamp}</span>
-                            {comment.edited && (
-                              <span className="text-[9px] text-[var(--text-muted)] italic">(edited)</span>
-                            )}
-                          </div>
-
-                          {/* Message */}
-                          <div className="mt-2 text-sm text-[var(--text-secondary)] leading-relaxed prose-content">
-                            {comment.message.split('\n').map((line, i) => {
-                              if (line.startsWith('```')) return null;
-                              if (line.match(/^const |^ {2}/)) {
-                                return <code key={i} className="block">{line}</code>;
-                              }
-                              // Highlight @mentions
-                              const parts = line.split(/(@\w+)/g);
-                              return (
-                                <p key={i} className="mb-1">
-                                  {parts.map((part, j) =>
-                                    part.startsWith('@') ? (
-                                      <span key={j} className="text-[var(--accent-primary)] font-semibold bg-[var(--accent-primary-muted)] px-1 rounded">
-                                        {part}
-                                      </span>
-                                    ) : part
-                                  )}
-                                </p>
-                              );
-                            })}
-                          </div>
-
-                          {/* Reactions */}
-                          {comment.reactions.length > 0 && (
-                            <div className="mt-2">
-                              <ReactionBar
-                                reactions={comment.reactions}
-                                currentUserId={currentUser?.id || 'u1'}
-                                onToggle={(emoji) => handleToggleReaction(comment.id, emoji)}
-                                onAdd={(emoji) => handleToggleReaction(comment.id, emoji)}
-                              />
-                            </div>
-                          )}
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-3 mt-2">
-                            <button
-                              onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                              className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors cursor-pointer flex items-center gap-1"
-                            >
-                              <Reply className="w-3 h-3" />
-                              Reply
-                            </button>
-                            <button className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer">
-                              Edit
-                            </button>
-                            <button className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-rose-400 transition-colors cursor-pointer">
-                              Delete
-                            </button>
-                          </div>
-
-                          {/* Reply Input */}
-                          {replyingTo === comment.id && (
-                            <div className="mt-3 flex gap-2 items-start animate-slide-in">
-                              <Avatar name={currentUser?.name || 'You'} size="xs" />
-                              <div className="flex-1 flex gap-2">
-                                <input
-                                  type="text"
-                                  value={replyText}
-                                  onChange={(e) => setReplyText(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleAddReply(comment.id)}
-                                  placeholder="Write a reply..."
-                                  className="flex-1 px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-xl text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)]/50"
-                                  autoFocus
-                                />
-                                <Button variant="primary" size="xs" icon={Send} onClick={() => handleAddReply(comment.id)} disabled={!replyText.trim()} />
-                                <Button variant="ghost" size="icon-xs" icon={X} onClick={() => { setReplyingTo(null); setReplyText(''); }} />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Thread Replies */}
-                          {comment.replies.length > 0 && (
-                            <div className="mt-3">
-                              <button
-                                onClick={() => toggleThread(comment.id)}
-                                className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)] cursor-pointer transition-colors"
-                              >
-                                {expandedThreads.has(comment.id) ? (
-                                  <ChevronDown className="w-3 h-3" />
-                                ) : (
-                                  <ChevronRight className="w-3 h-3" />
-                                )}
-                                {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
-                              </button>
-
-                              {expandedThreads.has(comment.id) && (
-                                <div className="mt-2 ml-2 pl-4 border-l-2 border-[var(--border-secondary)] space-y-3 animate-slide-down">
-                                  {comment.replies.map((reply) => (
-                                    <div key={reply.id} className="flex gap-2.5">
-                                      <Avatar name={reply.user.name} size="xs" />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="text-xs font-bold text-[var(--text-primary)]">{reply.user.name}</span>
-                                          <Badge variant="neutral" size="xs">{reply.user.role}</Badge>
-                                          <span className="text-[9px] text-[var(--text-muted)]">{reply.timestamp}</span>
-                                          {reply.edited && <span className="text-[9px] text-[var(--text-muted)] italic">(edited)</span>}
-                                        </div>
-                                        <p className="mt-1 text-xs text-[var(--text-secondary)] leading-relaxed">
-                                          {reply.message.split(/(@\w+)/g).map((part, j) =>
-                                            part.startsWith('@') ? (
-                                              <span key={j} className="text-[var(--accent-primary)] font-semibold bg-[var(--accent-primary-muted)] px-0.5 rounded">
-                                                {part}
-                                              </span>
-                                            ) : part
-                                          )}
-                                        </p>
-                                        {reply.reactions.length > 0 && (
-                                          <div className="mt-1.5">
-                                            <ReactionBar
-                                              reactions={reply.reactions}
-                                              currentUserId={currentUser?.id || 'u1'}
-                                              onToggle={(emoji) => handleToggleReaction(reply.id, emoji, true, comment.id)}
-                                              onAdd={(emoji) => handleToggleReaction(reply.id, emoji, true, comment.id)}
-                                            />
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <CommentSection
+                taskId={taskId}
+                projectId={projectId || task?.project?._id || task?.project}
+                currentUser={currentUser}
+              />
             </div>
           </div>
+
         </div>
 
         {/* ════════ RIGHT SIDEBAR ════════ */}

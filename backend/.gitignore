@@ -47,8 +47,3 @@ uploads/
 # Custom Scripts / Seeds
 seeduser.js
 
-# Docker
-Dockerfile
-.dockerignore
-
-

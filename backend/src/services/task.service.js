@@ -2,6 +2,7 @@ import Task from '../models/task.model.js';
 import Project from '../models/project.model.js';
 import ProjectMember from '../models/projectMember.model.js';
 import WorkspaceMember from '../models/workspaceMember.model.js';
+import Comment from '../models/comment.model.js';
 
 /**
  * Helper: assert that user has access to the project.
@@ -59,10 +60,23 @@ export const createTask = async (projectId, creatorId, taskData) => {
  */
 export const getProjectTasks = async (projectId, userId) => {
   await assertProjectAccess(projectId, userId);
-  return Task.find({ project: projectId })
+  const tasks = await Task.find({ project: projectId })
     .populate('assignedTo', 'name email')
     .populate('createdBy', 'name email')
     .lean();
+
+  const taskIds = tasks.map(t => t._id);
+  const commentCounts = await Comment.aggregate([
+    { $match: { task: { $in: taskIds }, isDeleted: false } },
+    { $group: { _id: '$task', count: { $sum: 1 } } }
+  ]);
+
+  const countMap = new Map(commentCounts.map(c => [c._id.toString(), c.count]));
+
+  return tasks.map(task => ({
+    ...task,
+    commentCount: countMap.get(task._id.toString()) || 0,
+  }));
 };
 
 /**
@@ -81,7 +95,12 @@ export const getTaskById = async (taskId, userId) => {
   }
 
   await assertProjectAccess(task.project, userId);
-  return task;
+  const commentCount = await Comment.countDocuments({ task: taskId, isDeleted: false });
+
+  return {
+    ...task,
+    commentCount,
+  };
 };
 
 /**

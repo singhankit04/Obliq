@@ -85,4 +85,10 @@ export const api = {
   createTask: (projectId, taskData) => apiInstance.post(`/tasks/project/${projectId}`, taskData).then(res => res.data),
   updateTask: (taskId, taskData) => apiInstance.put(`/tasks/${taskId}`, taskData).then(res => res.data),
   deleteTask: (taskId) => apiInstance.delete(`/tasks/${taskId}`).then(res => res.data),
+
+  // Comments API
+  getTaskComments: (taskId) => apiInstance.get(`/comments/task/${taskId}`).then(res => res.data),
+  createTaskComment: (taskId, formData) => apiInstance.post(`/comments/task/${taskId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(res => res.data),
+  updateComment: (commentId, content) => apiInstance.put(`/comments/${commentId}`, { content }).then(res => res.data),
+  deleteComment: (commentId) => apiInstance.delete(`/comments/${commentId}`).then(res => res.data),
 };

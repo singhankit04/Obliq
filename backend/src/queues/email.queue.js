@@ -30,3 +30,8 @@ export const emailQueue = new Queue('emailQueue', {
 export const addWelcomeEmailJob = async ({ email, name }) => {
   await emailQueue.add('sendWelcomeEmail', { email, name });
 };
+
+export const addMentionEmailJob = async ({ email, name, authorName, taskTitle, commentContent }) => {
+  await emailQueue.add('sendMentionEmail', { email, name, authorName, taskTitle, commentContent });
+};
+

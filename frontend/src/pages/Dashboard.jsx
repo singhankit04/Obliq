@@ -6,7 +6,7 @@ import { api } from '../services/api';
 import {
   Activity, AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, Circle,
   ChevronRight, Clock3, FolderKanban, Grid2X2, LayoutList, Plus, Search,
-  Sparkles, Target, TrendingUp, UserPlus,
+  Sparkles, Target, TrendingUp, UserPlus, MessageSquare,
 } from 'lucide-react';
 import Avatar, { AvatarGroup } from '../components/ui/Avatar';
 import Badge from '../components/ui/Badge';
@@ -85,10 +85,16 @@ function TaskCard({ task, compact = false }) {
         <Badge variant={task.priority || 'medium'} size="xs">{task.priority || 'medium'}</Badge>
       </div>
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className={`flex items-center gap-1 text-[11px] ${overdue ? 'text-rose-400' : 'text-slate-500'}`}>
-          <CalendarDays className="h-3.5 w-3.5" />
-          {dueDate ? dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No deadline'}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className={`flex items-center gap-1 text-[11px] ${overdue ? 'text-rose-400' : 'text-slate-500'}`}>
+            <CalendarDays className="h-3.5 w-3.5" />
+            {dueDate ? dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No deadline'}
+          </span>
+          <span className="flex items-center gap-1 text-[11px] text-indigo-400 font-medium">
+            <MessageSquare className="h-3 w-3" />
+            {task.commentCount || 0}
+          </span>
+        </div>
         {assignees.length > 0 ? <AvatarGroup users={assignees} size="xs" max={3} /> : <Circle className="h-4 w-4 text-slate-700" />}
       </div>
     </Link>
