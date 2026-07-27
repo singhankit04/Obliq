@@ -10,7 +10,7 @@ const connectionOptions = {
 /**
  * Initializes and returns the BullMQ worker that processes email jobs.
  */
-export const setupEmailWorker = () => {
+export const setupEmailWorker = async () => {
   const emailWorker = new Worker(
     'emailQueue',
     async (job) => {
@@ -51,6 +51,10 @@ export const setupEmailWorker = () => {
   );
 
   // Worker Event Listeners
+  emailWorker.on('error', (err) => {
+    console.error(`❌ [EmailWorker Redis Error]: ${err.message}`);
+  });
+
   emailWorker.on('completed', (job) => {
     console.log(`🎉 [EmailWorker] Job #${job.id} completed successfully`);
   });
@@ -59,5 +63,6 @@ export const setupEmailWorker = () => {
     console.error(`❌ [EmailWorker] Job #${job?.id} failed with error: ${err.message}`);
   });
 
+  await emailWorker.waitUntilReady();
   return emailWorker;
 };

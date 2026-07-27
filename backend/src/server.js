@@ -8,15 +8,11 @@ app.listen(PORT, async () => {
   await connectDB();
   console.log(`Server is running on port ${PORT}`);
 
-  // Start BullMQ Email Worker if REDIS_URL is set
-  if (process.env.REDIS_URL) {
-    try {
-      setupEmailWorker();
-      console.log('⚡ BullMQ Email Worker started');
-    } catch (err) {
-      console.error('❌ Failed to start Email Worker:', err.message);
-    }
-  } else {
-    console.warn('⚠️ REDIS_URL not provided. BullMQ Email Worker skipped.');
+  // Start BullMQ Email Worker asynchronously
+  try {   
+    await setupEmailWorker();
+    console.log('⚡ BullMQ Email Worker started');
+  } catch (err) {
+    console.error('❌ BullMQ Email Worker failed to start:', err.message);
   }
 });
