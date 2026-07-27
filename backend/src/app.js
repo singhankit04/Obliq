@@ -25,7 +25,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Health Check Route (for Render zero-downtime health checks)
-app.get('/health', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
