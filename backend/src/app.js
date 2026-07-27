@@ -14,6 +14,7 @@ import commentRoutes from './routes/comment.routes.js';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(cors({
   origin: process.env.FRONTEND_URL ,
@@ -22,6 +23,11 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Health Check Route (for Render zero-downtime health checks)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
