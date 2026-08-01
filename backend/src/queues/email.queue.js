@@ -35,3 +35,37 @@ export const addMentionEmailJob = async ({ email, name, authorName, taskTitle, c
   await emailQueue.add('sendMentionEmail', { email, name, authorName, taskTitle, commentContent });
 };
 
+export const addWorkspaceInviteEmailJob = async ({
+  email,
+  inviterName,
+  workspaceName,
+  role,
+  acceptUrl,
+  rejectUrl,
+}) => {
+  await emailQueue.add('sendWorkspaceInviteEmail', {
+    email,
+    inviterName,
+    workspaceName,
+    role,
+    acceptUrl,
+    rejectUrl,
+  });
+};
+
+export const addWorkspaceInviteAcceptedEmailJob = async ({
+  email,
+  userName,
+  workspaceName,
+  role,
+  workspaceUrl,
+}) => {
+  await emailQueue.add('sendWorkspaceInviteAcceptedEmail', {
+    email,
+    userName,
+    workspaceName,
+    role,
+    workspaceUrl,
+  });
+};
+

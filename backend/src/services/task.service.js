@@ -3,6 +3,8 @@ import Project from '../models/project.model.js';
 import ProjectMember from '../models/projectMember.model.js';
 import WorkspaceMember from '../models/workspaceMember.model.js';
 import Comment from '../models/comment.model.js';
+import { createNotification } from './notification.service.js';
+import { NOTIFICATION_TYPES } from '../models/notification.model.js';
 
 /**
  * Helper: assert that user has access to the project.
@@ -38,7 +40,7 @@ const assertProjectAccess = async (projectId, userId) => {
  * Create a task in a project.
  */
 export const createTask = async (projectId, creatorId, taskData) => {
-  const { workspaceMembership, projectMembership } = await assertProjectAccess(projectId, creatorId);
+  const { project, workspaceMembership, projectMembership } = await assertProjectAccess(projectId, creatorId);
 
   // Viewers cannot create tasks
   if (projectMembership && projectMembership.role === 'viewer') {
@@ -47,12 +49,31 @@ export const createTask = async (projectId, creatorId, taskData) => {
     throw error;
   }
 
-  return Task.create({
+  const assignedTo = taskData.assignedTo || [];
+  const task = await Task.create({
     project: projectId,
     createdBy: creatorId,
     ...taskData,
-    assignedTo: taskData.assignedTo || [],
+    assignedTo,
   });
+
+  // Trigger TASK_ASSIGNED notifications to assignees asynchronously
+  if (Array.isArray(assignedTo) && assignedTo.length > 0) {
+    assignedTo.forEach((assigneeId) => {
+      createNotification({
+        recipient: assigneeId,
+        sender: creatorId,
+        type: NOTIFICATION_TYPES.TASK_ASSIGNED,
+        title: 'Task Assigned',
+        message: `You were assigned to task "${task.title}".`,
+        workspace: project.workspace,
+        project: projectId,
+        task: task._id,
+      }).catch((err) => console.error('Notification error:', err.message));
+    });
+  }
+
+  return task;
 };
 
 /**
@@ -107,14 +128,14 @@ export const getTaskById = async (taskId, userId) => {
  * Update a task (project members except viewers can update).
  */
 export const updateTask = async (taskId, userId, updates) => {
-  const task = await Task.findById(taskId);
-  if (!task) {
+  const oldTask = await Task.findById(taskId);
+  if (!oldTask) {
     const error = new Error('Task not found');
     error.statusCode = 404;
     throw error;
   }
 
-  const { workspaceMembership, projectMembership } = await assertProjectAccess(task.project, userId);
+  const { project, workspaceMembership, projectMembership } = await assertProjectAccess(oldTask.project, userId);
 
   if (projectMembership && projectMembership.role === 'viewer') {
     const error = new Error('Forbidden: viewers cannot update tasks');
@@ -122,9 +143,51 @@ export const updateTask = async (taskId, userId, updates) => {
     throw error;
   }
 
-  return Task.findByIdAndUpdate(taskId, updates, { new: true, runValidators: true })
+  const updatedTask = await Task.findByIdAndUpdate(taskId, updates, { new: true, runValidators: true })
     .populate('assignedTo', 'name email')
     .populate('createdBy', 'name email');
+
+  // Trigger Notifications asynchronously
+  const oldAssignees = new Set((oldTask.assignedTo || []).map((id) => id.toString()));
+  const newAssignees = (updatedTask.assignedTo || []).map((u) => (u._id || u).toString());
+
+  // 1. Send TASK_ASSIGNED to newly added assignees
+  newAssignees.forEach((assigneeId) => {
+    if (!oldAssignees.has(assigneeId)) {
+      createNotification({
+        recipient: assigneeId,
+        sender: userId,
+        type: NOTIFICATION_TYPES.TASK_ASSIGNED,
+        title: 'Task Assigned',
+        message: `You were assigned to task "${updatedTask.title}".`,
+        workspace: project.workspace,
+        project: oldTask.project,
+        task: updatedTask._id,
+      }).catch((err) => console.error('Notification error:', err.message));
+    }
+  });
+
+  // 2. Send TASK_UPDATED to all existing assignees & task creator
+  const recipientsToNotify = new Set([
+    ...newAssignees,
+    oldTask.createdBy.toString(),
+  ]);
+
+  recipientsToNotify.forEach((recipientId) => {
+    createNotification({
+      recipient: recipientId,
+      sender: userId,
+      type: NOTIFICATION_TYPES.TASK_UPDATED,
+      title: 'Task Updated',
+      message: `Task "${updatedTask.title}" was updated.`,
+      workspace: project.workspace,
+      project: oldTask.project,
+      task: updatedTask._id,
+      data: { updates },
+    }).catch((err) => console.error('Notification error:', err.message));
+  });
+
+  return updatedTask;
 };
 
 /**

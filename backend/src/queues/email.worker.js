@@ -1,6 +1,10 @@
 import { Worker } from 'bullmq';
 import { sendEmail } from '../utils/mailer.js';
-import { renderWelcomeEmail } from '../templates/index.js';
+import {
+  renderWelcomeEmail,
+  renderWorkspaceInviteEmail,
+  renderWorkspaceInviteAcceptedEmail,
+} from '../templates/index.js';
 
 const connectionOptions = {
   url: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
@@ -45,6 +49,39 @@ export const setupEmailWorker = async () => {
         });
 
         console.log(`✅ [EmailWorker] Mention email sent to ${email}`);
+      } else if (job.name === 'sendWorkspaceInviteEmail') {
+        const { email, inviterName, workspaceName, role, acceptUrl, rejectUrl } = job.data;
+        const brand = process.env.NAME || 'Obliq';
+
+        await sendEmail({
+          to: email,
+          subject: `Invitation to join "${workspaceName}" on ${brand}`,
+          html: renderWorkspaceInviteEmail({
+            inviterName,
+            workspaceName,
+            role,
+            acceptUrl,
+            rejectUrl,
+          }),
+        });
+
+        console.log(`✅ [EmailWorker] Workspace invite email sent to ${email}`);
+      } else if (job.name === 'sendWorkspaceInviteAcceptedEmail') {
+        const { email, userName, workspaceName, role, workspaceUrl } = job.data;
+        const brand = process.env.NAME || 'Obliq';
+
+        await sendEmail({
+          to: email,
+          subject: `Workspace Invitation Accepted - Welcome to "${workspaceName}"!`,
+          html: renderWorkspaceInviteAcceptedEmail({
+            userName,
+            workspaceName,
+            role,
+            workspaceUrl,
+          }),
+        });
+
+        console.log(`✅ [EmailWorker] Workspace invite accepted email sent to ${email}`);
       }
     },
     { connection: connectionOptions }

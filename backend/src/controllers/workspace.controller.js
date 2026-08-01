@@ -95,3 +95,35 @@ export const removeMember = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getInviteByToken = async (req, res, next) => {
+  try {
+    const invite = await workspaceService.getInviteDetailsByToken(req.params.token);
+    res.json({ invite });
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ message: error.message });
+    next(error);
+  }
+};
+
+export const acceptInvite = async (req, res, next) => {
+  try {
+    const token = req.body.token || req.params.token;
+    const result = await workspaceService.acceptWorkspaceInvite(token, req.user._id);
+    res.json(result);
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ message: error.message });
+    next(error);
+  }
+};
+
+export const rejectInvite = async (req, res, next) => {
+  try {
+    const token = req.body.token || req.params.token;
+    const result = await workspaceService.rejectWorkspaceInvite(token, req.user._id);
+    res.json(result);
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ message: error.message });
+    next(error);
+  }
+};

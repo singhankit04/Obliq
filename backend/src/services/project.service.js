@@ -2,6 +2,8 @@ import Project from '../models/project.model.js';
 import ProjectMember from '../models/projectMember.model.js';
 import WorkspaceMember from '../models/workspaceMember.model.js';
 import Task from '../models/task.model.js';
+import { createNotification } from './notification.service.js';
+import { NOTIFICATION_TYPES } from '../models/notification.model.js';
 
 /**
  * Helper: assert that the user is a member of the workspace.
@@ -291,6 +293,20 @@ export const updateProjectMemberRole = async (projectId, requesterId, memberId, 
     error.statusCode = 404;
     throw error;
   }
+
+  if (member.user && member.user._id) {
+    createNotification({
+      recipient: member.user._id,
+      sender: requesterId,
+      type: NOTIFICATION_TYPES.ROLE_CHANGED,
+      title: 'Project Role Updated',
+      message: `Your role in project "${project.name}" was updated to ${role}.`,
+      workspace: project.workspace,
+      project: projectId,
+      data: { newRole: role },
+    }).catch((err) => console.error('Notification error:', err.message));
+  }
+
   return member;
 };
 

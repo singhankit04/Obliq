@@ -160,7 +160,7 @@ export const registerUser = async ({ name, email, password, userAgent, ip }) => 
 };
 
 export const loginUser = async ({ email, password, userAgent, ip }) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select('+password');
   if (!user || !(await user.matchPassword(password))) {
     await recordFailedLogin(email);
     const error = new Error('Invalid email or password');

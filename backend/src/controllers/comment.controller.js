@@ -5,6 +5,8 @@ import ProjectMember from '../models/projectMember.model.js';
 import User from '../models/user.model.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 import { addMentionEmailJob } from '../queues/email.queue.js';
+import { createNotification } from '../services/notification.service.js';
+import { NOTIFICATION_TYPES } from '../models/notification.model.js';
 
 /**
  * Helper to check if a user is authorized for a project (Manager or Member)
@@ -153,6 +155,30 @@ export const createTaskComment = async (req, res, next) => {
         }
       }
     }
+
+    // 8. Trigger In-App & Socket.IO COMMENT_ADDED Notifications
+    const commentRecipients = new Set([
+      ...(mentions || []),
+      ...(task.assignedTo || []).map((id) => id.toString()),
+      task.createdBy.toString(),
+    ]);
+
+    const projectObj = await Project.findById(task.project).select('workspace');
+    const workspaceId = projectObj ? projectObj.workspace : null;
+
+    commentRecipients.forEach((recipientId) => {
+      createNotification({
+        recipient: recipientId,
+        sender: userId,
+        type: NOTIFICATION_TYPES.COMMENT_ADDED,
+        title: 'New Comment',
+        message: `${req.user.name} commented on task "${task.title}".`,
+        workspace: workspaceId,
+        project: task.project,
+        task: taskId,
+        comment: comment._id,
+      }).catch((err) => console.error('Notification error:', err.message));
+    });
 
     // 8. Populate author and mentions for response
     const populatedComment = await Comment.findById(comment._id)

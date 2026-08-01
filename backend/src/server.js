@@ -1,10 +1,15 @@
+import http from 'http';
 import app from './app.js';
 import connectDB from './config/db.js';
+import { initSocket } from './config/socket.js';
 import { setupEmailWorker } from './queues/email.worker.js';
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, async () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, async () => {
   await connectDB();
   console.log(`Server is running on port ${PORT}`);
 

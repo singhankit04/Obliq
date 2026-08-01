@@ -26,8 +26,12 @@ export const workspaceIdSchema = z.object({
 
 export const inviteMemberSchema = z.object({
   body: z.object({
-    userIds: z.array(z.string().length(24, 'Invalid user ID')),
+    userIds: z.array(z.string().length(24, 'Invalid user ID')).optional(),
+    emails: z.array(z.string().email('Invalid email address')).optional(),
     role: z.enum(['manager', 'member']).optional(),
+  }).refine((data) => (data.userIds && data.userIds.length > 0) || (data.emails && data.emails.length > 0), {
+    message: 'At least one user ID or email must be provided',
+    path: ['emails'],
   }),
   params: z.object({
     workspaceId: z.string().length(24, 'Invalid workspace ID'),
