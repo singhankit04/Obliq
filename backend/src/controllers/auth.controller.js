@@ -84,7 +84,7 @@ export const login = async (req, res, next) => {
     const userAgent = req.headers['user-agent'];
     const ip = req.ip;
 
-    console.log(email, password, userAgent, ip)
+   
     const result = await authService.loginUser({ email, password, userAgent, ip });
 
   

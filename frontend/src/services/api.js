@@ -91,4 +91,11 @@ export const api = {
   createTaskComment: (taskId, formData) => apiInstance.post(`/comments/task/${taskId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(res => res.data),
   updateComment: (commentId, content) => apiInstance.put(`/comments/${commentId}`, { content }).then(res => res.data),
   deleteComment: (commentId) => apiInstance.delete(`/comments/${commentId}`).then(res => res.data),
+
+  // Notifications API
+  getNotifications: () => apiInstance.get('/notifications').then(res => res.data),
+  getUnreadCount: () => apiInstance.get('/notifications/unread-count').then(res => res.data),
+  markAllAsRead: () => apiInstance.patch('/notifications/read-all').then(res => res.data),
+  markAsRead: (id) => apiInstance.patch(`/notifications/${id}/read`).then(res => res.data),
+  deleteNotification: (id) => apiInstance.delete(`/notifications/${id}`).then(res => res.data),
 };

@@ -1,35 +1,39 @@
-export default function TabBar({ tabs = [], activeTab, onChange, className = '' }) {
+import { cn } from '../../lib/cn';
+
+/**
+ * Tabs — horizontal tab bar with active indicator.
+ */
+export default function Tabs({ tabs, activeTab, onChange, className }) {
   return (
-    <div className={`flex items-center border-b border-[var(--border-primary)] ${className}`}>
+    <div className={cn('flex items-center gap-1 p-1 bg-zinc-900 border border-zinc-800 rounded-xl', className)}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
+        const Icon = tab.icon;
+
         return (
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
-            className={`
-              relative flex items-center gap-1.5 px-4 py-3 text-xs font-semibold transition-all cursor-pointer
-              ${isActive 
-                ? 'text-[var(--accent-primary)]' 
-                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-              }
-            `}
+            className={cn(
+              'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer',
+              isActive
+                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+            )}
           >
-            {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
+            {Icon && <Icon className="w-3.5 h-3.5" />}
             {tab.label}
             {tab.count !== undefined && (
-              <span className={`
-                px-1.5 py-0.5 rounded-full text-[9px] font-bold
-                ${isActive 
-                  ? 'bg-[var(--accent-primary-muted)] text-[var(--accent-primary)]' 
-                  : 'bg-[var(--bg-elevated)] text-[var(--text-muted)]'
-                }
-              `}>
+              <span
+                className={cn(
+                  'ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold',
+                  isActive
+                    ? 'bg-blue-500/20 text-blue-300'
+                    : 'bg-zinc-800 text-zinc-500'
+                )}
+              >
                 {tab.count}
               </span>
-            )}
-            {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent-primary)] rounded-full" />
             )}
           </button>
         );

@@ -1,88 +1,89 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../../lib/cn';
 
+/**
+ * Dropdown — click-triggered menu.
+ */
 export default function Dropdown({
   trigger,
   children,
   align = 'left',
-  className = '',
+  className,
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') setIsOpen(false);
-    };
-    if (isOpen) window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
-
-  const alignClass = align === 'right' ? 'right-0' : 'left-0';
-
   return (
-    <div ref={dropdownRef} className={`relative ${className}`}>
-      <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
-        {trigger || (
-          <button className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-xl hover:border-[var(--border-active)] transition-all">
-            Options
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-          </button>
-        )}
-      </div>
+    <div ref={ref} className="relative inline-block">
+      <div onClick={() => setOpen(!open)}>{trigger}</div>
 
-      {isOpen && (
-        <div
-          className={`
-            absolute ${alignClass} mt-2 min-w-[180px] bg-[var(--bg-card)] border border-[var(--border-primary)]
-            rounded-xl shadow-xl z-50 py-1.5 animate-scale-in
-          `}
-          role="menu"
-        >
-          <div onClick={() => setIsOpen(false)}>
-            {children}
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.12, ease: 'easeOut' }}
+            className={cn(
+              'absolute z-50 mt-1 min-w-[180px] bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/40 p-1',
+              align === 'right' ? 'right-0' : 'left-0',
+              className
+            )}
+          >
+            {typeof children === 'function'
+              ? children(() => setOpen(false))
+              : children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
+/**
+ * DropdownItem — single menu item.
+ */
 export function DropdownItem({
   children,
   icon: Icon,
   onClick,
   variant = 'default',
-  disabled = false,
-  className = '',
+  className,
+  ...props
 }) {
-  const variantClass = {
-    default: 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]',
-    danger: 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10',
-    active: 'text-[var(--accent-primary)] bg-[var(--accent-primary-muted)]',
+  const variantStyles = {
+    default: 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800',
+    danger: 'text-red-400 hover:text-red-300 hover:bg-red-500/10',
   };
 
   return (
     <button
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
-      className={`
-        w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-all text-left
-        ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
-        ${variantClass[variant] || variantClass.default}
-        ${className}
-      `}
-      role="menuitem"
+      onClick={onClick}
+      className={cn(
+        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer',
+        variantStyles[variant],
+        className
+      )}
+      {...props}
     >
       {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
       {children}
@@ -90,6 +91,9 @@ export function DropdownItem({
   );
 }
 
+/**
+ * DropdownDivider — separator line.
+ */
 export function DropdownDivider() {
-  return <div className="my-1.5 border-t border-[var(--border-secondary)]" />;
+  return <div className="my-1 h-px bg-zinc-800" />;
 }

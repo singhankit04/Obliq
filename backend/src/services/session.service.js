@@ -101,8 +101,7 @@ export const updateRedisSessionToken = async (sessionId, newRefreshTokenHash) =>
 export const revokeRedisSession = async (sessionId) => {
   const session = await getRedisSession(sessionId);
   if (session) {
-    await redis.del(`session:${sessionId}`);
-    await redis.srem(`user_sessions:${session.userId}`, sessionId);
+    await redis.hset(`session:${sessionId}`, 'isValid', 'false');
   }
 };
 
@@ -118,9 +117,8 @@ export const revokeAllUserSessions = async (userId) => {
   if (sessionIds && sessionIds.length > 0) {
     const pipeline = redis.pipeline();
     sessionIds.forEach((sId) => {
-      pipeline.del(`session:${sId}`);
+      pipeline.hset(`session:${sId}`, 'isValid', 'false');
     });
-    pipeline.del(userSessionsKey);
     await pipeline.exec();
   }
 };

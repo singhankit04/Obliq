@@ -1,60 +1,32 @@
 import { renderEmailLayout } from './emailLayout.js';
+import { renderHeader, renderGreeting, renderPrimaryButton, renderAlertBox, renderSignature, renderSmallText } from './components.js';
 
 /**
- * Renders an HTML email template for Password Reset
+ * Password Reset Email
  * @param {Object} params
- * @param {string} params.resetUrl - The absolute password reset link
- * @returns {string} Fully formatted HTML string
+ * @param {string} params.resetUrl
+ * @param {string} [params.name]
  */
-export const renderResetPasswordEmail = ({ resetUrl }) => {
-  const brandName = process.env.NAME || 'Obliq';
-  const title = 'Reset Your Password';
-  const preheader = `Reset your ${brandName} password using the secure link inside. Valid for 15 minutes.`;
+export const renderResetPasswordEmail = ({ resetUrl, name }) => {
+  const title = 'Reset your password';
+  const subtitle = 'We received a request to reset the password for your Obliq account.';
+  const preheader = 'Click the link to reset your Obliq account password. Valid for 1 hour.';
 
   const content = `
-    <div style="text-align: center; margin-bottom: 20px;">
-      <div style="width: 56px; height: 56px; background-color: #eef2ff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto;">
-        <span style="font-size: 26px;">🔒</span>
-      </div>
-    </div>
-
-    <h2 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 700; color: #0f172a; text-align: center; letter-spacing: -0.5px;">
-      Password Reset Request
-    </h2>
-    <p style="margin: 0 0 28px 0; font-size: 15px; color: #475569; line-height: 1.6; text-align: center;">
-      We received a request to reset the password for your <strong>${brandName}</strong> account. Click the button below to choose a new password:
+    ${renderHeader({ title, subtitle })}
+    ${renderGreeting(name)}
+    <p style="margin: 0 0 24px 0; font-size: 15px; color: #94A3B8; line-height: 1.7; font-family: Arial, Helvetica, sans-serif;">
+      Click the button below to set a new password. This link will expire in
+      <strong style="color: #F1F5F9;">1 hour</strong> for your security.
     </p>
-
-    <!-- Primary Action Button -->
-    <div style="margin: 32px 0; text-align: center;">
-      <a href="${resetUrl}" target="_blank" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4); transition: all 0.2s ease;">
-        Reset Password
-      </a>
-    </div>
-
-    <!-- Timer / Expiry Notice -->
-    <div style="background-color: #f1f5f9; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; text-align: center;">
-      <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 500;">
-        ⏱️ This password reset link is valid for <strong>15 minutes</strong> only.
-      </p>
-    </div>
-
-    <!-- Fallback Link -->
-    <div style="background-color: #fafafa; border: 1px solid #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; word-break: break-all;">
-      <p style="margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-        Button not working? Copy & paste link below:
-      </p>
-      <a href="${resetUrl}" style="font-size: 13px; color: #4f46e5; text-decoration: underline;">
-        ${resetUrl}
-      </a>
-    </div>
-
-    <!-- Security Alert -->
-    <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; margin-top: 24px;">
-      <p style="margin: 0; font-size: 13px; color: #94a3b8; line-height: 1.5; text-align: center;">
-        If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
-      </p>
-    </div>
+    ${renderPrimaryButton({ text: 'Reset Password', url: resetUrl })}
+    ${renderAlertBox({
+      title: 'Didn\'t request this?',
+      message: 'If you didn\'t request a password reset, you can safely ignore this email. Your password will remain unchanged.',
+      type: 'info',
+    })}
+    ${renderSmallText(`Button not working? Copy and paste this link into your browser:<br/><a href="${resetUrl}" style="color: #4F8EF7; word-break: break-all;">${resetUrl}</a>`)}
+    ${renderSignature()}
   `;
 
   return renderEmailLayout({ title, preheader, content });

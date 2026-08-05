@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './components/ui/Toast';
 import { Loader2 } from 'lucide-react';
 
 // Layout & Pages
@@ -14,6 +16,16 @@ import Dashboard from './pages/Dashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import TaskDetail from './pages/TaskDetail';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 30000,
+    },
+  },
+});
+
 // Route Guard for authenticated pages
 function ProtectedRoute() {
   const { user, loading } = useAuth();
@@ -21,7 +33,10 @@ function ProtectedRoute() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-primary)]" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+          <span className="text-xs text-zinc-500 font-medium">Loading...</span>
+        </div>
       </div>
     );
   }
@@ -42,7 +57,7 @@ function AuthRoute() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-primary)]" />
+        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
       </div>
     );
   }
@@ -52,32 +67,36 @@ function AuthRoute() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public Auth routes */}
-            <Route element={<AuthRoute />}>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-            </Route>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              <Routes>
+                {/* Public Auth routes */}
+                <Route element={<AuthRoute />}>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                </Route>
 
-            {/* Protected workspace and dashboard routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<DashboardLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/project/:projectId" element={<ProjectDetail />} />
-                <Route path="/project/:projectId/task/:taskId" element={<TaskDetail />} />
-              </Route>
-            </Route>
+                {/* Protected workspace and dashboard routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<DashboardLayout />}>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/project/:projectId" element={<ProjectDetail />} />
+                    <Route path="/project/:projectId/task/:taskId" element={<TaskDetail />} />
+                  </Route>
+                </Route>
 
-            {/* Catch-all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+                {/* Catch-all route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+          </AuthProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

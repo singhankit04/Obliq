@@ -1,26 +1,34 @@
+import { cn } from '../../lib/cn';
+import { Inbox } from 'lucide-react';
 import Button from './Button';
 
+/**
+ * EmptyState — displayed when a section has no data.
+ */
 export default function EmptyState({
-  icon: Icon,
+  icon: Icon = Inbox,
   title = 'Nothing here yet',
-  description = '',
+  description,
   actionLabel,
   onAction,
-  className = '',
+  className,
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center text-center py-12 px-6 ${className}`}>
-      {Icon && (
-        <div className="w-14 h-14 rounded-2xl bg-[var(--accent-primary-muted)] border border-[var(--accent-primary)]/15 flex items-center justify-center mb-4">
-          <Icon className="w-7 h-7 text-[var(--accent-primary)]" />
-        </div>
-      )}
-      <h4 className="text-sm font-bold text-[var(--text-primary)] mb-1">{title}</h4>
+    <div className={cn('flex flex-col items-center justify-center text-center py-12 px-6', className)}>
+      <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mb-4">
+        <Icon className="w-5 h-5 text-zinc-500" />
+      </div>
+      <h3 className="text-sm font-semibold text-zinc-200">{title}</h3>
       {description && (
-        <p className="text-xs text-[var(--text-tertiary)] max-w-xs leading-relaxed">{description}</p>
+        <p className="text-xs text-zinc-500 mt-1.5 max-w-xs">{description}</p>
       )}
       {actionLabel && onAction && (
-        <Button variant="outline" size="sm" onClick={onAction} className="mt-4">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onAction}
+          className="mt-4"
+        >
           {actionLabel}
         </Button>
       )}

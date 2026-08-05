@@ -2,17 +2,64 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { User, Mail, Lock, Key, Loader2, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Mail, Lock, Key, Loader2, AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Zap, Shield, Users } from 'lucide-react';
+
+function FloatingOrb({ className, style }) {
+  return <div className={`absolute rounded-full opacity-15 blur-3xl animate-float ${className}`} style={style} />;
+}
+
+function BrandPanel() {
+  return (
+    <div className="auth-brand-panel">
+      <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-[#0a1628] to-zinc-950" />
+      <FloatingOrb className="w-72 h-72 bg-blue-600 top-[10%] left-[15%]" />
+      <FloatingOrb className="w-96 h-96 bg-blue-800 bottom-[10%] right-[10%]" style={{ animationDelay: '2s' }} />
+      <FloatingOrb className="w-48 h-48 bg-sky-600 top-[55%] left-[55%]" style={{ animationDelay: '4s' }} />
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+        backgroundSize: '60px 60px',
+      }} />
+      <div className="relative z-10 max-w-md px-12 text-center lg:text-left">
+        <div className="inline-flex items-center gap-3 mb-10">
+          <img src="/favicon.svg" alt="Obliq Logo" className="w-11 h-11 rounded-xl shadow-lg shadow-blue-600/20" />
+          <span className="text-2xl font-bold tracking-tight text-zinc-100">Obliq</span>
+        </div>
+        <h1 className="text-4xl lg:text-5xl font-bold text-zinc-100 leading-tight tracking-tight mb-6">
+          Start building
+          <br />
+          <span className="gradient-text">something great.</span>
+        </h1>
+        <p className="text-lg text-zinc-400 leading-relaxed mb-10">
+          Join thousands of teams already using Obliq to ship faster and stay organized.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {[
+            { icon: Shield, label: 'Free to start' },
+            { icon: Users, label: 'Unlimited members' },
+            { icon: Zap, label: 'No credit card' },
+          ].map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.04] border border-white/[0.06] text-sm text-zinc-400">
+              <Icon className="w-3.5 h-3.5 text-blue-400" />
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Signup() {
-  const [step, setStep] = useState(1); // 1: Details, 2: OTP
+  const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '']);
   const [secondsLeft, setSecondsLeft] = useState(600);
   const otpRefs = useRef([]);
-  
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -35,36 +82,25 @@ export default function Signup() {
 
   useEffect(() => {
     if (step !== 1) return;
-
     const initializeGoogleSignUp = () => {
       if (window.google?.accounts?.id) {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your_google_client_id_here';
-        
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         window.google.accounts.id.initialize({
           client_id: clientId,
           callback: handleGoogleCallback,
         });
-
         window.google.accounts.id.renderButton(
           document.getElementById('google-signup-btn'),
-          { 
-            theme: 'filled_dark', 
-            size: 'large', 
-            width: '100%',
-            shape: 'rectangular',
-            text: 'signup_with',
-          }
+          { theme: 'filled_black', size: 'large', width: '100%', shape: 'rectangular', text: 'signup_with' }
         );
       }
     };
-
     const interval = setInterval(() => {
       if (window.google?.accounts?.id) {
         initializeGoogleSignUp();
         clearInterval(interval);
       }
     }, 200);
-
     return () => clearInterval(interval);
   }, [step, handleGoogleCallback]);
 
@@ -74,18 +110,14 @@ export default function Signup() {
     return () => window.clearInterval(timer);
   }, [step, secondsLeft]);
 
-  // Send OTP and transition to step 2
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setError('');
-
     if (password.length < 6) {
       setError('Password must be at least 6 characters long.');
       return;
     }
-
     setSubmitting(true);
-
     try {
       await api.sendOtp(email);
       setSuccess('A 4-digit OTP has been sent to your email.');
@@ -99,19 +131,13 @@ export default function Signup() {
     }
   };
 
-  // Verify OTP and complete signup
   const handleVerifyAndSignup = async (e) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
-
     try {
-      // 1. Verify OTP
       await api.verifyOtp(email, otpDigits.join(''));
-      
-      // 2. Complete Signup
       await signup(name, email, password);
-      
       navigate('/');
     } catch (err) {
       setError(err.message || 'Verification or registration failed.');
@@ -151,216 +177,200 @@ export default function Signup() {
       setSuccess('A fresh verification code is on its way.');
       otpRefs.current[0]?.focus();
     } catch (err) {
-      setError(err.message || 'Could not resend your code.');
+      setError(err.message || 'Failed to resend the code.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formattedTime = `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(secondsLeft % 60).padStart(2, '0')}`;
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0b0f19] px-4 relative overflow-hidden">
-      {/* Background Gradients */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -z-10" />
+    <div className="auth-layout">
+      <BrandPanel />
 
-      <div className="w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl border border-slate-800 animate-slide-in">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-purple-600/10 rounded-xl mb-4 border border-purple-500/20">
-            <span className="text-3xl font-black bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent tracking-wider">
-              OBLIQ
-            </span>
-          </div>
-          <h2 className="text-2xl font-bold text-slate-100">Create Account</h2>
-          <p className="text-slate-400 text-sm mt-1">
-            {step === 1 ? 'Get started with your free workspace' : 'Verify your email address'}
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-950/40 border border-red-500/30 rounded-xl flex items-start gap-3 text-red-200 text-sm">
-            <AlertCircle className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-xl flex items-start gap-3 text-emerald-200 text-sm">
-            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
-            <span>{success}</span>
-          </div>
-        )}
-
-        {step === 1 ? (
-          <>
-            <form onSubmit={handleSendOtp} className="space-y-5">
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5" htmlFor="name">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  id="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5" htmlFor="email">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-950/50 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label className="block text-slate-300 text-sm font-medium" htmlFor="password">
-                  Password
-                </label>
-                <span className={`text-[11px] ${password.length > 0 && password.length < 6 ? 'text-red-400 font-medium' : 'text-slate-500'}`}>
-                  Min. 6 characters
-                </span>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={`w-full pl-11 pr-4 py-2.5 bg-slate-950/50 border rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 transition-all text-sm ${
-                    password.length > 0 && password.length < 6
-                      ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500'
-                      : 'border-slate-800 focus:border-purple-500 focus:ring-purple-500'
-                  }`}
-                />
-              </div>
-              {password.length > 0 && password.length < 6 && (
-                <p className="text-[11px] text-red-400 mt-1">Password must be at least 6 characters long.</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full mt-2 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-slate-100 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/20 text-sm"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Sending OTP...
-                </>
-              ) : (
-                'Send Verification OTP'
-              )}
-            </button>
-          </form>
-
-          <div className="relative my-6" >
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-800"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-[#0b0f19] px-2 text-slate-500">Or continue with</span>
+      <div className="auth-form-panel">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-sm"
+        >
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="inline-flex items-center gap-2.5">
+              <img src="/favicon.svg" alt="Obliq Logo" className="w-9 h-9 rounded-lg shadow-sm" />
+              <span className="text-xl font-bold tracking-tight text-zinc-100">Obliq</span>
             </div>
           </div>
 
-          <div className="flex justify-center">
-            <div id="google-signup-btn" className="w-full min-h-[40px] flex justify-center"></div>
-          </div>
-        </>
-      ) : (
-          <form onSubmit={handleVerifyAndSignup} className="space-y-5">
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="block text-slate-300 text-sm font-medium" htmlFor="otp-0">Enter verification code</label>
-                <span className="flex items-center gap-1 text-xs font-medium text-slate-500"><Key className="h-3.5 w-3.5" />{formattedTime}</span>
+          {/* Steps indicator */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className={`flex items-center gap-2 text-xs font-semibold ${step === 1 ? 'text-blue-400' : 'text-zinc-600'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${step === 1 ? 'bg-blue-600 text-white' : step > 1 ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500'}`}>
+                {step > 1 ? <CheckCircle2 className="w-3.5 h-3.5" /> : '1'}
               </div>
-              <p className="mt-1 text-xs text-slate-500">We sent a 4-digit code to {email}.</p>
-              <div className="mt-4 flex justify-between gap-3" onPaste={handleOtpPaste}>
-                {otpDigits.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(element) => { otpRefs.current[index] = element; }}
-                    id={`otp-${index}`}
-                    inputMode="numeric"
-                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                    aria-label={`Verification digit ${index + 1}`}
-                    value={digit}
-                    onChange={(event) => handleOtpChange(index, event.target.value)}
-                    onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                    className="h-14 min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-950/50 text-center text-xl font-bold text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20"
-                  />
-                ))}
-              </div>
-              <p className="mt-4 text-center text-xs text-slate-500">
-                Didn&apos;t receive it?{' '}
-                <button type="button" onClick={handleResendOtp} disabled={submitting || secondsLeft > 540} className="font-semibold text-indigo-300 transition hover:text-indigo-200 disabled:cursor-not-allowed disabled:text-slate-600">
-                  {secondsLeft > 540 ? `Resend in ${formattedTime}` : 'Resend code'}
-                </button>
-              </p>
+              Details
             </div>
+            <div className="flex-1 h-px bg-zinc-800" />
+            <div className={`flex items-center gap-2 text-xs font-semibold ${step === 2 ? 'text-blue-400' : 'text-zinc-600'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${step === 2 ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-500'}`}>
+                2
+              </div>
+              Verify
+            </div>
+          </div>
 
-            <div className="flex gap-3 mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setStep(1);
-                  setSuccess('');
-                  setError('');
-                }}
-                className="flex-1 py-3 border border-slate-800 hover:bg-slate-800/30 text-slate-300 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 text-sm"
+          <AnimatePresence mode="wait">
+            {step === 1 ? (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={{ duration: 0.2 }}
               >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </button>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-zinc-100 tracking-tight">Create your account</h2>
+                  <p className="text-zinc-500 text-sm mt-1.5">Get started with Obliq in seconds</p>
+                </div>
 
-              <button
-                type="submit"
-                disabled={submitting || otpDigits.join('').length !== 4}
-                className="flex-[2] py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-slate-100 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/20 text-sm"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  'Verify & Register'
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/8 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
                 )}
-              </button>
-            </div>
-          </form>
-        )}
 
-        <div className="text-center mt-6 text-sm text-slate-400">
-          Already have an account?{' '}
-          <Link to="/login" className="text-purple-400 hover:text-purple-300 font-medium hover:underline">
-            Sign in
-          </Link>
-        </div>
+                <form onSubmit={handleSendOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-zinc-400 text-xs font-semibold mb-2 uppercase tracking-wider" htmlFor="name">Full Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                      <input id="name" type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" className="input-field" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-zinc-400 text-xs font-semibold mb-2 uppercase tracking-wider" htmlFor="signup-email">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                      <input id="signup-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="input-field" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-zinc-400 text-xs font-semibold mb-2 uppercase tracking-wider" htmlFor="signup-password">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                      <input id="signup-password" type={showPassword ? 'text' : 'password'} required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" className="input-field !pr-11" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors" tabIndex={-1}>
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button type="submit" disabled={submitting} className="w-full mt-2 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-600/20 text-sm group active:scale-[0.98]">
+                    {submitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Sending code...</>
+                    ) : (
+                      <>Continue <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" /></>
+                    )}
+                  </button>
+                </form>
+
+                <div className="relative my-7">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-800" /></div>
+                  <div className="relative flex justify-center text-xs uppercase tracking-wider">
+                    <span className="bg-[var(--bg-primary)] px-3 text-zinc-600">Or continue with</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <div id="google-signup-btn" className="w-full min-h-[40px] flex justify-center" />
+                </div>
+
+                <div className="text-center mt-8 text-sm text-zinc-500">
+                  Already have an account?{' '}
+                  <Link to="/login" className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">Sign in</Link>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2 }}
+              >
+                <button onClick={() => { setStep(1); setError(''); setSuccess(''); }} className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-200 mb-6 transition-colors group">
+                  <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                  Back to details
+                </button>
+
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-zinc-100 tracking-tight">Verify your email</h2>
+                  <p className="text-zinc-500 text-sm mt-1.5">We sent a 4-digit code to <span className="text-zinc-300 font-medium">{email}</span></p>
+                </div>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/8 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span>
+                  </div>
+                )}
+                {success && (
+                  <div className="mb-4 p-3 bg-emerald-500/8 border border-emerald-500/20 rounded-xl flex items-start gap-3 text-emerald-400 text-sm">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /><span>{success}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleVerifyAndSignup} className="space-y-6">
+                  <div>
+                    <label className="block text-zinc-400 text-xs font-semibold mb-3 uppercase tracking-wider">
+                      <Key className="w-3.5 h-3.5 inline mr-1.5" />
+                      Verification Code
+                    </label>
+                    <div className="flex gap-3 justify-center" onPaste={handleOtpPaste}>
+                      {otpDigits.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { otpRefs.current[i] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(i, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                          className="w-14 h-14 text-center text-xl font-bold bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          autoFocus={i === 0}
+                        />
+                      ))}
+                    </div>
+                    {secondsLeft > 0 && (
+                      <p className="text-xs text-zinc-600 text-center mt-3">
+                        Code expires in <span className="text-zinc-400 font-medium">{formatTime(secondsLeft)}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <button type="submit" disabled={submitting || otpDigits.some((d) => !d)} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-600/20 text-sm active:scale-[0.98]">
+                    {submitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</>
+                    ) : (
+                      <>Create Account <ArrowRight className="w-4 h-4" /></>
+                    )}
+                  </button>
+
+                  <div className="text-center">
+                    <button type="button" onClick={handleResendOtp} disabled={submitting} className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors disabled:opacity-50">
+                      Resend verification code
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   );

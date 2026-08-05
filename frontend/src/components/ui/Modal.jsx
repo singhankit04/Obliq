@@ -1,14 +1,14 @@
 import { useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export default function Modal({ 
-  isOpen, 
-  onClose, 
-  title, 
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
   subtitle,
-  children, 
+  children,
   maxWidth = 'max-w-md',
-  className = '' 
+  className = ''
 }) {
   const overlayRef = useRef(null);
 
@@ -41,21 +41,26 @@ export default function Modal({
       aria-label={title}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-md" />
+
       {/* Content */}
       <div className={`
-        relative w-full ${maxWidth} bg-[var(--bg-card)] border border-[var(--border-primary)]
-        rounded-2xl shadow-2xl animate-scale-in
+        relative w-full ${maxWidth}
+        bg-[var(--bg-card)] border border-[var(--border-primary)]
+        rounded-2xl shadow-[var(--shadow-xl)]
+        animate-scale-in
         ${className}
       `}>
+        {/* Subtle top accent line */}
+        <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+
         {/* Header */}
         {title && (
           <div className="flex items-start justify-between p-6 pb-0">
             <div>
               <h3 className="text-lg font-bold text-[var(--text-primary)]">{title}</h3>
               {subtitle && (
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">{subtitle}</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">{subtitle}</p>
               )}
             </div>
             <button
@@ -67,7 +72,7 @@ export default function Modal({
             </button>
           </div>
         )}
-        
+
         {/* Body */}
         <div className="p-6">
           {children}

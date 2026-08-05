@@ -1,27 +1,18 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { createContext, useEffect, useContext, useCallback } from 'react';
 
 const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('obliq-theme') || 'dark';
-    }
-    return 'dark';
-  });
-
-  const isDark = theme === 'dark';
+  const theme = 'dark';
+  const isDark = true;
 
   useEffect(() => {
     const root = document.documentElement;
-    root.setAttribute('data-theme', theme);
-    localStorage.setItem('obliq-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    root.setAttribute('data-theme', 'dark');
+    localStorage.setItem('obliq-theme', 'dark');
   }, []);
+
+  const toggleTheme = useCallback(() => {}, []);
 
   return (
     <ThemeContext.Provider value={{ theme, isDark, toggleTheme }}>

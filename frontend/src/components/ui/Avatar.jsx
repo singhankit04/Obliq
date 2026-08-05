@@ -1,85 +1,97 @@
+import { cn } from '../../lib/cn';
 
 const sizeMap = {
   xs: 'w-6 h-6 text-[10px]',
   sm: 'w-8 h-8 text-xs',
   md: 'w-10 h-10 text-sm',
   lg: 'w-12 h-12 text-base',
-  xl: 'w-14 h-14 text-lg',
 };
 
-const statusColors = {
-  online: 'bg-emerald-500',
-  away: 'bg-amber-500',
-  busy: 'bg-rose-500',
-  offline: 'bg-slate-400',
-};
-
-const colorPalette = [
-  'from-indigo-500 to-purple-500',
-  'from-cyan-500 to-blue-500',
-  'from-emerald-500 to-teal-500',
-  'from-rose-500 to-pink-500',
-  'from-amber-500 to-orange-500',
-  'from-violet-500 to-fuchsia-500',
+const colorPool = [
+  'bg-blue-600/20 text-blue-300',
+  'bg-emerald-600/20 text-emerald-300',
+  'bg-amber-600/20 text-amber-300',
+  'bg-violet-600/20 text-violet-300',
+  'bg-rose-600/20 text-rose-300',
+  'bg-cyan-600/20 text-cyan-300',
+  'bg-indigo-600/20 text-indigo-300',
+  'bg-pink-600/20 text-pink-300',
 ];
 
-export default function Avatar({ 
-  name = '', 
-  src, 
-  size = 'md', 
-  status, 
-  className = '',
-  ring = false,
-}) {
-  const initial = name ? name.charAt(0).toUpperCase() : '?';
-  const colorIndex = name ? name.charCodeAt(0) % colorPalette.length : 0;
-  const gradient = colorPalette[colorIndex];
+function getColor(name) {
+  if (!name) return colorPool[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colorPool[Math.abs(hash) % colorPool.length];
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+export default function Avatar({ name, src, size = 'md', className, ...props }) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name || 'Avatar'}
+        className={cn(
+          'rounded-full object-cover shrink-0',
+          sizeMap[size],
+          className
+        )}
+        {...props}
+      />
+    );
+  }
 
   return (
-    <div className={`relative inline-flex shrink-0 ${className}`}>
-      {src ? (
-        <img
-          src={src}
-          alt={name}
-          className={`${sizeMap[size]} rounded-xl object-cover ${ring ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-card)]' : ''}`}
-        />
-      ) : (
-        <div
-          className={`${sizeMap[size]} rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold shadow-sm ${ring ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-card)]' : ''}`}
-          title={name}
-        >
-          {initial}
-        </div>
+    <div
+      className={cn(
+        'rounded-full flex items-center justify-center font-semibold shrink-0 select-none',
+        sizeMap[size],
+        getColor(name),
+        className
       )}
-      {status && (
-        <span
-          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[status]} rounded-full border-2 border-[var(--bg-card)]`}
-        />
-      )}
+      title={name}
+      {...props}
+    >
+      {getInitials(name)}
     </div>
   );
 }
 
-export function AvatarGroup({ users = [], max = 4, size = 'sm' }) {
-  const visible = users.slice(0, max);
-  const remaining = users.length - max;
+/**
+ * AvatarGroup — stacked avatar list with overflow count.
+ */
+export function AvatarGroup({ users = [], size = 'sm', max = 3, className }) {
+  const shown = users.slice(0, max);
+  const rest = users.length - max;
 
   return (
-    <div className="flex items-center -space-x-2">
-      {visible.map((user, idx) => (
+    <div className={cn('flex -space-x-2', className)}>
+      {shown.map((user, i) => (
         <Avatar
-          key={user.id || idx}
+          key={user._id || user.id || i}
           name={user.name}
           src={user.avatar}
           size={size}
-          className="border-2 border-[var(--bg-card)] hover:z-10 hover:scale-110 transition-transform cursor-pointer"
+          className="ring-2 ring-zinc-900"
         />
       ))}
-      {remaining > 0 && (
+      {rest > 0 && (
         <div
-          className={`${sizeMap[size]} rounded-xl bg-[var(--bg-elevated)] border-2 border-[var(--bg-card)] flex items-center justify-center text-[var(--text-tertiary)] font-bold`}
+          className={cn(
+            'rounded-full flex items-center justify-center font-semibold ring-2 ring-zinc-900 bg-zinc-700 text-zinc-300 shrink-0',
+            sizeMap[size]
+          )}
         >
-          +{remaining}
+          +{rest}
         </div>
       )}
     </div>

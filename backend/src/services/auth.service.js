@@ -323,6 +323,10 @@ export const loginWithGoogle = async ({ credential, userAgent, ip }) => {
       email,
       googleId,
     });
+    // Dispatch Welcome Email Job to BullMQ Queue (Non-blocking background execution)
+    addWelcomeEmailJob({ email: user.email, name: user.name }).catch((err) => {
+      console.error('Failed to queue welcome email:', err);
+    });
   } else {
     if (!user.googleId) {
       user.googleId = googleId;

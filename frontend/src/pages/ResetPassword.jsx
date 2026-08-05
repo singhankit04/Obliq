@@ -56,10 +56,9 @@ export default function ResetPassword() {
 
       <div className="w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl border border-slate-800 animate-slide-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-purple-600/10 rounded-xl mb-4 border border-purple-500/20">
-            <span className="text-3xl font-black bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent tracking-wider">
-              OBLIQ
-            </span>
+          <div className="inline-flex items-center gap-3 mb-4">
+            <img src="/favicon.svg" alt="Obliq Logo" className="w-10 h-10 rounded-xl shadow-lg shadow-blue-500/20" />
+            <span className="text-2xl font-bold tracking-tight text-slate-100">Obliq</span>
           </div>
           <h2 className="text-2xl font-bold text-slate-100">Reset Password</h2>
           <p className="text-slate-400 text-sm mt-1">Create a new secure password for your account</p>
