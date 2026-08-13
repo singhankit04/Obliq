@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './components/ui/Toast';
@@ -71,29 +72,31 @@ export default function App() {
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
-            <BrowserRouter>
-              <Routes>
-                {/* Public Auth routes */}
-                <Route element={<AuthRoute />}>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                </Route>
-
-                {/* Protected workspace and dashboard routes */}
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<DashboardLayout />}>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/project/:projectId" element={<ProjectDetail />} />
-                    <Route path="/project/:projectId/task/:taskId" element={<TaskDetail />} />
+            <SocketProvider>
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Auth routes */}
+                  <Route element={<AuthRoute />}>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
                   </Route>
-                </Route>
 
-                {/* Catch-all route */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </BrowserRouter>
+                  {/* Protected workspace and dashboard routes */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<DashboardLayout />}>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/project/:projectId" element={<ProjectDetail />} />
+                      <Route path="/project/:projectId/task/:taskId" element={<TaskDetail />} />
+                    </Route>
+                  </Route>
+
+                  {/* Catch-all route */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </BrowserRouter>
+            </SocketProvider>
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>

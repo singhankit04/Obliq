@@ -114,7 +114,7 @@ export const verifySignupOtp = async (email, otp, userAgent, ip) => {
 
     return {
       isLogin: true,
-      user: { name: user.name, email: user.email },
+      user: { _id: user._id, name: user.name, email: user.email },
       ...tokens,
     };
   }
@@ -154,7 +154,7 @@ export const registerUser = async ({ name, email, password, userAgent, ip }) => 
   });
 
   return {
-    user: { name: user.name, email: user.email },
+    user: { _id: user._id, name: user.name, email: user.email },
     ...tokens
   };
 };
@@ -173,7 +173,7 @@ export const loginUser = async ({ email, password, userAgent, ip }) => {
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 
   return {
-    user: { name: user.name, email: user.email },
+    user: { _id: user._id, name: user.name, email: user.email },
     ...tokens
   };
 };
@@ -337,7 +337,7 @@ export const loginWithGoogle = async ({ credential, userAgent, ip }) => {
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 
   return {
-    user: { name: user.name, email: user.email },
+    user: { _id: user._id, name: user.name, email: user.email },
     ...tokens
   };
 };

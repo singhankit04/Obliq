@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useParams, useLocation } from 'react-router-
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useSocket } from '../context/SocketContext';
 import { useSidebarStore } from '../store/useSidebarStore';
 import { useCommandStore } from '../store/useCommandStore';
 import { api } from '../services/api';
@@ -18,10 +19,13 @@ import Dialog from './ui/Dialog';
 import Button from './ui/Button';
 import Avatar from './ui/Avatar';
 import Badge from './ui/Badge';
+import { useToast } from './ui/Toast';
 import { cn } from '../lib/cn';
 
 export default function DashboardLayout() {
   const { logout, user } = useAuth();
+  const { socket, isConnected } = useSocket();
+  const { addToast } = useToast();
   const {
     workspaces, activeWorkspace, setActiveWorkspace,
     projects, refreshWorkspaces, refreshProjects,
@@ -57,7 +61,7 @@ export default function DashboardLayout() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch notifications
+  // Fetch initial notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -72,9 +76,34 @@ export default function DashboardLayout() {
       }
     };
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Listen to real-time notifications via Socket.IO
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewNotification = (newNotif) => {
+      console.log('🔔 [Socket.IO] New notification received:', newNotif);
+
+      setNotifications((prev) => [newNotif, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+
+      // Trigger real-time toast alert
+      if (addToast) {
+        addToast({
+          title: newNotif.title || 'New Notification',
+          message: newNotif.message || 'You have a new update in your workspace.',
+          type: 'info',
+        });
+      }
+    };
+
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [socket, addToast]);
 
   // Handle Workspace creation
   const handleCreateWorkspace = async (e) => {
@@ -159,10 +188,36 @@ export default function DashboardLayout() {
   const handleMarkAllRead = async () => {
     try {
       await api.markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true, read: true })));
       setUnreadCount(0);
     } catch {
       // silent
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    const isUnread = !notif.isRead && !notif.read;
+    if (isUnread) {
+      try {
+        await api.markAsRead(notif._id);
+        setNotifications((prev) =>
+          prev.map((n) => (n._id === notif._id ? { ...n, isRead: true, read: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch {
+        // silent
+      }
+    }
+    setShowNotifications(false);
+
+    // Navigate to target task/project if present
+    const projId = notif.project?._id || notif.project;
+    const taskId = notif.task?._id || notif.task;
+
+    if (projId && taskId) {
+      navigate(`/project/${projId}/task/${taskId}`);
+    } else if (projId) {
+      navigate(`/project/${projId}`);
     }
   };
 
@@ -504,9 +559,14 @@ export default function DashboardLayout() {
           {/* Right section */}
           <div className="flex items-center gap-2">
             {/* Status */}
-            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/5 px-2.5 py-1">
-              <Circle className="h-2 w-2 fill-emerald-400 text-emerald-400" />
-              <span className="text-[10px] font-semibold text-emerald-400">Online</span>
+            <div className={cn(
+              "hidden sm:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold",
+              isConnected
+                ? "border-emerald-500/15 bg-emerald-500/5 text-emerald-400"
+                : "border-amber-500/15 bg-amber-500/5 text-amber-400"
+            )}>
+              <Circle className={cn("h-2 w-2 fill-current", isConnected ? "text-emerald-400" : "text-amber-400")} />
+              <span>{isConnected ? "Live" : "Connecting..."}</span>
             </div>
 
             {/* Notifications */}
@@ -546,27 +606,31 @@ export default function DashboardLayout() {
                       )}
                     </div>
                     <div className="mt-1 space-y-0.5 max-h-64 overflow-y-auto">
-                      {notifications.length > 0 ? notifications.slice(0, 8).map((notif) => (
-                        <div
-                          key={notif._id}
-                          className={cn(
-                            'rounded-xl p-3 transition-colors hover:bg-zinc-800/60 cursor-pointer',
-                            !notif.read && 'bg-blue-500/5'
-                          )}
-                        >
-                          <div className="flex items-start gap-2">
-                            {!notif.read && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
+                      {notifications.length > 0 ? notifications.slice(0, 8).map((notif) => {
+                        const isUnread = !notif.isRead && !notif.read;
+                        return (
+                          <div
+                            key={notif._id}
+                            onClick={() => handleNotificationClick(notif)}
+                            className={cn(
+                              'rounded-xl p-3 transition-colors hover:bg-zinc-800/60 cursor-pointer',
+                              isUnread && 'bg-blue-500/5 font-medium'
                             )}
-                            <div className={!notif.read ? '' : 'ml-3.5'}>
-                              <p className="text-xs font-medium text-zinc-300">{notif.message || notif.content}</p>
-                              <p className="mt-0.5 text-[10px] text-zinc-600">
-                                {notif.createdAt ? new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Just now'}
-                              </p>
+                          >
+                            <div className="flex items-start gap-2">
+                              {isUnread && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
+                              )}
+                              <div className={!isUnread ? 'ml-3.5' : ''}>
+                                <p className="text-xs text-zinc-200">{notif.title ? `${notif.title}: ${notif.message}` : (notif.message || notif.content)}</p>
+                                <p className="mt-0.5 text-[10px] text-zinc-500">
+                                  {notif.createdAt ? new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )) : (
+                        );
+                      }) : (
                         <div className="py-8 text-center text-xs text-zinc-600">
                           No notifications yet
                         </div>
