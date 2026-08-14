@@ -517,16 +517,18 @@
 }
 
 /* ========================================
-   GOOGLE SIGN-IN BUTTON TRANSPARENT FIX
+   GOOGLE SIGN-IN INVISIBLE OVERLAY PATTERN
    ======================================== */
 
 #google-signin-btn,
 #google-signup-btn {
-  display: flex !important;
-  justify-content: center !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  border-radius: 4px !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0 !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
   overflow: hidden !important;
 }
 
@@ -534,8 +536,8 @@
 #google-signup-btn > div,
 #google-signin-btn iframe,
 #google-signup-btn iframe {
-  color-scheme: dark !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  border-radius: 4px !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0 !important;
+  cursor: pointer !important;
 }
