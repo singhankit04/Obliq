@@ -93,7 +93,12 @@ export default function Signup() {
         });
         window.google.accounts.id.renderButton(
           document.getElementById('google-signup-btn'),
-          { theme: 'filled_black', size: 'large', width: '100%', shape: 'rectangular', text: 'signup_with' }
+          {
+            theme: 'filled_black',
+            size: 'large',
+            shape: 'rectangular',
+            text: 'signup_with',
+          }
         );
       }
     };
