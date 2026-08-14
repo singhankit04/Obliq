@@ -143,7 +143,7 @@ export const updateTask = async (taskId, userId, updates) => {
     throw error;
   }
 
-  const updatedTask = await Task.findByIdAndUpdate(taskId, updates, { new: true, runValidators: true })
+  const updatedTask = await Task.findByIdAndUpdate(taskId, updates, { returnDocument: 'after', runValidators: true })
     .populate('assignedTo', 'name email')
     .populate('createdBy', 'name email');
 

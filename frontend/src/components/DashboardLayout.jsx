@@ -210,11 +210,14 @@ export default function DashboardLayout() {
     }
     setShowNotifications(false);
 
-    // Navigate to target task/project if present
+    // Navigate to invite link, task, or project if present
+    const inviteToken = notif.data?.inviteToken || notif.inviteToken;
     const projId = notif.project?._id || notif.project;
     const taskId = notif.task?._id || notif.task;
 
-    if (projId && taskId) {
+    if (inviteToken) {
+      navigate(`/invitation/${inviteToken}`);
+    } else if (projId && taskId) {
       navigate(`/project/${projId}/task/${taskId}`);
     } else if (projId) {
       navigate(`/project/${projId}`);

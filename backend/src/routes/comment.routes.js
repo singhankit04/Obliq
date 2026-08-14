@@ -17,8 +17,9 @@ import {
 
 const router = express.Router();
 
-// Require authentication for all comment routes
+
 router.use(protect);
+
 
 // Task comment routes
 router.post(

@@ -67,6 +67,9 @@ export const api = {
   inviteWorkspaceMember: (workspaceId, userIds, role = 'member') => apiInstance.post(`/workspace/${workspaceId}/members`, { userIds: Array.isArray(userIds) ? userIds : [userIds], role }).then(res => res.data),
   updateWorkspaceMemberRole: (workspaceId, memberId, role) => apiInstance.put(`/workspace/${workspaceId}/members/${memberId}`, { role }).then(res => res.data),
   removeWorkspaceMember: (workspaceId, memberId) => apiInstance.delete(`/workspace/${workspaceId}/members/${memberId}`).then(res => res.data),
+  getInviteByToken: (token) => apiInstance.get(`/workspace/invitations/token/${token}`).then(res => res.data),
+  acceptInvite: (token) => apiInstance.post(`/workspace/invitations/${token}/accept`, { token }).then(res => res.data),
+  rejectInvite: (token) => apiInstance.post(`/workspace/invitations/${token}/reject`, { token }).then(res => res.data),
 
   // Projects API
   getProjects: (workspaceId) => apiInstance.get(`/projects/workspace/${workspaceId}`).then(res => res.data),

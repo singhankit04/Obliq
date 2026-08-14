@@ -40,6 +40,7 @@ export const addWorkspaceInviteEmailJob = async ({
   inviterName,
   workspaceName,
   role,
+  inviteUrl,
   acceptUrl,
   rejectUrl,
 }) => {
@@ -48,6 +49,7 @@ export const addWorkspaceInviteEmailJob = async ({
     inviterName,
     workspaceName,
     role,
+    inviteUrl,
     acceptUrl,
     rejectUrl,
   });

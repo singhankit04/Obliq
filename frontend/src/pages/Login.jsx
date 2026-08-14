@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { Lock, Mail, Loader2, AlertCircle, Eye, EyeOff, ArrowRight, Zap, Shield, Users } from 'lucide-react';
@@ -68,19 +68,21 @@ export default function Login() {
 
   const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/';
 
   const handleGoogleCallback = useCallback(async (response) => {
     setError('');
     setSubmitting(true);
     try {
       await googleLogin(response.credential);
-      navigate('/');
+      navigate(redirectUrl);
     } catch (err) {
       setError(err.message || 'Google sign in failed');
     } finally {
       setSubmitting(false);
     }
-  }, [googleLogin, navigate]);
+  }, [googleLogin, navigate, redirectUrl]);
 
   useEffect(() => {
     const initializeGoogleSignIn = () => {
@@ -119,7 +121,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate(redirectUrl);
     } catch (err) {
       setError(err.message || 'Failed to sign in. Please check your credentials.');
     } finally {

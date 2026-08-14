@@ -19,13 +19,13 @@ app.set('trust proxy', 1);
 
 app.use(cors({
   origin: process.env.FRONTEND_URL ,
-  credentials: true // Important for cookies!
+  credentials: true 
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 
-// Health Check Route (for Render zero-downtime health checks)
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });

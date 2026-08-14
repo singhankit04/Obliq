@@ -60,7 +60,7 @@ export const updateWorkspace = async (workspaceId, userId, updates) => {
     error.statusCode = 403;
     throw error;
   }
-  return Workspace.findByIdAndUpdate(workspaceId, {...updates,updatedBy: userId }, { new: true, runValidators: true });
+  return Workspace.findByIdAndUpdate(workspaceId, {...updates,updatedBy: userId }, { returnDocument: 'after', runValidators: true });
 };
 
 /**
@@ -116,7 +116,7 @@ export const getWorkspaceMembers = async (workspaceId, userId) => {
 /**
  * Invite user(s) to a workspace via Email (owner/manager only).
  */
-export const inviteMember = async (workspaceId, inviterId, { userIds = [], emails = [], role = 'member' }) => {
+export const inviteMember = async (workspaceId, inviterId, { userIds = [], role = 'member' }) => {
   const inviterMembership = await WorkspaceMember.findOne({ workspace: workspaceId, user: inviterId }).populate('user', 'name email');
   if (!inviterMembership || !['owner', 'manager'].includes(inviterMembership.role)) {
     const error = new Error('Forbidden: insufficient permissions to invite members');
@@ -131,21 +131,17 @@ export const inviteMember = async (workspaceId, inviterId, { userIds = [], email
     throw error;
   }
 
-  // Combine userIds and raw emails
-  const targetEmailsSet = new Set(emails.map((e) => e.toLowerCase().trim()));
-
+  let targetEmails;
   if (Array.isArray(userIds) && userIds.length > 0) {
     const users = await User.find({ _id: { $in: userIds } }).select('email');
-    users.forEach((u) => targetEmailsSet.add(u.email.toLowerCase().trim()));
+    targetEmails=users.map((u) =>u.email.toLowerCase().trim());
   }
 
-  if (targetEmailsSet.size === 0) {
+  if (targetEmails.size === 0) {
     const error = new Error('At least one valid user or email must be provided');
     error.statusCode = 400;
     throw error;
   }
-
-  const targetEmails = Array.from(targetEmailsSet);
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const inviterName = inviterMembership.user ? inviterMembership.user.name : 'A team member';
 
@@ -172,8 +168,10 @@ export const inviteMember = async (workspaceId, inviterId, { userIds = [], email
       });
     }
 
-    const acceptUrl = `${frontendUrl}/workspace/invite/accept?token=${invite.token}`;
-    const rejectUrl = `${frontendUrl}/workspace/invite/reject?token=${invite.token}`;
+    const inviteUrl = `${frontendUrl}/invitation/${invite.token}`;
+    const acceptUrl = `${frontendUrl}/invitation/${invite.token}`;
+    const rejectUrl = `${frontendUrl}/invitation/${invite.token}`;
+    console.log('Generated invite URL:', inviteUrl);
 
     // 3. Queue invitation email job
     await addWorkspaceInviteEmailJob({
@@ -181,6 +179,7 @@ export const inviteMember = async (workspaceId, inviterId, { userIds = [], email
       inviterName,
       workspaceName: workspace.name,
       role,
+      inviteUrl,
       acceptUrl,
       rejectUrl,
     });
@@ -359,7 +358,7 @@ export const updateMemberRole = async (workspaceId, requesterId, memberId, role)
   const member = await WorkspaceMember.findByIdAndUpdate(
     memberId,
     { role },
-    { new: true }
+    { returnDocument: 'after' }
   ).populate('user', 'name email');
 
   if (!member) {

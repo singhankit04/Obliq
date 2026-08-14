@@ -50,7 +50,7 @@ export const setupEmailWorker = async () => {
 
         console.log(`✅ [EmailWorker] Mention email sent to ${email}`);
       } else if (job.name === 'sendWorkspaceInviteEmail') {
-        const { email, inviterName, workspaceName, role, acceptUrl, rejectUrl } = job.data;
+        const { email, inviterName, workspaceName, role, inviteUrl, acceptUrl, rejectUrl } = job.data;
         const brand = process.env.NAME || 'Obliq';
 
         await sendEmail({
@@ -60,6 +60,7 @@ export const setupEmailWorker = async () => {
             inviterName,
             workspaceName,
             role,
+            inviteUrl: inviteUrl || acceptUrl,
             acceptUrl,
             rejectUrl,
           }),

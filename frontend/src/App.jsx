@@ -16,6 +16,7 @@ import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import TaskDetail from './pages/TaskDetail';
+import AcceptInvite from './pages/AcceptInvite';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,13 +43,7 @@ function ProtectedRoute() {
     );
   }
 
-  return user ? (
-    <WorkspaceProvider>
-      <Outlet />
-    </WorkspaceProvider>
-  ) : (
-    <Navigate to="/login" replace />
-  );
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
 // Route Guard for unauthenticated pages (Login/Signup)
@@ -72,31 +67,37 @@ export default function App() {
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
-            <SocketProvider>
-              <BrowserRouter>
-                <Routes>
-                  {/* Public Auth routes */}
-                  <Route element={<AuthRoute />}>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                  </Route>
-
-                  {/* Protected workspace and dashboard routes */}
-                  <Route element={<ProtectedRoute />}>
-                    <Route element={<DashboardLayout />}>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/project/:projectId" element={<ProjectDetail />} />
-                      <Route path="/project/:projectId/task/:taskId" element={<TaskDetail />} />
+            <WorkspaceProvider>
+              <SocketProvider>
+                <BrowserRouter>
+                  <Routes>
+                    {/* Public Auth routes */}
+                    <Route element={<AuthRoute />}>
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/signup" element={<Signup />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
                     </Route>
-                  </Route>
 
-                  {/* Catch-all route */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </BrowserRouter>
-            </SocketProvider>
+                    {/* Invitation routes (Accessible whether logged in or out) */}
+                    <Route path="/invitation/:token" element={<AcceptInvite />} />
+                    <Route path="/invitations/token/:token" element={<AcceptInvite />} />
+
+                    {/* Protected workspace and dashboard routes */}
+                    <Route element={<ProtectedRoute />}>
+                      <Route element={<DashboardLayout />}>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/project/:projectId" element={<ProjectDetail />} />
+                        <Route path="/project/:projectId/task/:taskId" element={<TaskDetail />} />
+                      </Route>
+                    </Route>
+
+                    {/* Catch-all route */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </BrowserRouter>
+              </SocketProvider>
+            </WorkspaceProvider>
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>

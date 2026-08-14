@@ -137,7 +137,7 @@ export const updateProject = async (projectId, userId, updates) => {
     throw error;
   }
 
-  return Project.findByIdAndUpdate(projectId, {...updates,updatedBy: userId }, { new: true, runValidators: true });
+  return Project.findByIdAndUpdate(projectId, {...updates,updatedBy: userId }, { returnDocument: 'after', runValidators: true });
 };
 
 /**
@@ -285,7 +285,7 @@ export const updateProjectMemberRole = async (projectId, requesterId, memberId, 
     throw error;
   }
 
-  const member = await ProjectMember.findByIdAndUpdate(memberId, { role }, { new: true })
+  const member = await ProjectMember.findByIdAndUpdate(memberId, { role }, { returnDocument: 'after' })
     .populate('user', 'name email');
 
   if (!member) {

@@ -66,19 +66,21 @@ export default function Signup() {
 
   const { signup, googleLogin } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/';
 
   const handleGoogleCallback = useCallback(async (response) => {
     setError('');
     setSubmitting(true);
     try {
       await googleLogin(response.credential);
-      navigate('/');
+      navigate(redirectUrl);
     } catch (err) {
       setError(err.message || 'Google sign up failed');
     } finally {
       setSubmitting(false);
     }
-  }, [googleLogin, navigate]);
+  }, [googleLogin, navigate, redirectUrl]);
 
   useEffect(() => {
     if (step !== 1) return;
@@ -138,7 +140,7 @@ export default function Signup() {
     try {
       await api.verifyOtp(email, otpDigits.join(''));
       await signup(name, email, password);
-      navigate('/');
+      navigate(redirectUrl);
     } catch (err) {
       setError(err.message || 'Verification or registration failed.');
     } finally {
