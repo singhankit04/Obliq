@@ -85,7 +85,11 @@ export const setupEmailWorker = async () => {
         console.log(`✅ [EmailWorker] Workspace invite accepted email sent to ${email}`);
       }
     },
-    { connection: connectionOptions }
+    {
+      connection: connectionOptions,
+      lockDuration: 60000,
+      stalledInterval: 30000,
+    }
   );
 
   // Worker Event Listeners
