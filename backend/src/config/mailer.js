@@ -21,7 +21,9 @@ const getTransporter = async () => {
       user: emailUser,
       pass: emailPass,
     },
-    
+    tls: {
+  rejectUnauthorized: false,
+},
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 15000,

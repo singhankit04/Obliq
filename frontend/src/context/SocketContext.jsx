@@ -5,13 +5,13 @@ import { useAuth } from './AuthContext';
 
 const SocketContext = createContext(null);
 
-const SOCKET_URL = import.meta.env.VITE_API_URL;
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-console.log(user)
+  console.log(user)
   const userId = user?._id || user?.id;
 
   useEffect(() => {
@@ -20,6 +20,7 @@ console.log(user)
         socket.disconnect();
         setSocket(null);
         setIsConnected(false);
+        
       }
       return;
     }
@@ -31,7 +32,6 @@ console.log(user)
       transports: ['websocket', 'polling'],
       autoConnect: true,
     });
-
     socketInstance.on('connect', () => {
       console.log(`🔌 [Socket.IO] Connected: ${socketInstance.id} (User Room: user:${userId})`);
       setIsConnected(true);

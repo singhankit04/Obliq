@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+const BASE_SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = `${BASE_SERVER_URL.replace(/\/+$/, '')}/api`;
+
 const apiInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -25,7 +28,7 @@ apiInstance.interceptors.response.use(
       originalRequest._retry = true;
       try {
         await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/refresh`,
+          `${API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
