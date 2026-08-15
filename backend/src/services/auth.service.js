@@ -10,7 +10,7 @@ import redis from '../config/redis.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { sendEmail } from '../utils/mailer.js';
+import { sendEmail } from '../config/mailer.js';
 import { renderOtpEmail, renderResetPasswordEmail } from '../templates/index.js';
 import { recordOtpRequest, recordFailedLogin, clearFailedLogins, recordFailedOtpVerify } from '../middlewares/rateLimiter.middleware.js';
 import { addWelcomeEmailJob } from '../queues/email.queue.js';

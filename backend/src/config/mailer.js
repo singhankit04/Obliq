@@ -14,9 +14,7 @@ const getTransporter = async () => {
 
 
   transporterConfig = {
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    service: "gmail",
     auth: {
       user: emailUser,
       pass: emailPass,

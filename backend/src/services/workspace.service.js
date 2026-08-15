@@ -134,6 +134,7 @@ export const inviteMember = async (workspaceId, inviterId, { userIds = [], role 
   let targetEmails;
   if (Array.isArray(userIds) && userIds.length > 0) {
     const users = await User.find({ _id: { $in: userIds } }).select('email');
+    console.log(users)
     targetEmails=users.map((u) =>u.email.toLowerCase().trim());
   }
 

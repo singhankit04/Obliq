@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { sendEmail } from '../utils/mailer.js';
+import { sendEmail } from '../config/mailer.js';
 import {
   renderWelcomeEmail,
   renderWorkspaceInviteEmail,
