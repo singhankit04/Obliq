@@ -59,6 +59,8 @@ export const api = {
   forgotPassword: (email) => apiInstance.post('/auth/forgot-password', { email }).then(res => res.data),
   resetPassword: (token, newPassword) => apiInstance.post('/auth/reset-password', { token, newPassword }).then(res => res.data),
   searchUsers: (email) => apiInstance.get(`/auth/users/search?email=${encodeURIComponent(email)}`).then(res => res.data),
+  uploadAvatar: (formData) => apiInstance.post('/auth/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(res => res.data),
+  deleteAvatar: () => apiInstance.delete('/auth/avatar').then(res => res.data),
 
   // Workspaces API
   getWorkspaces: () => apiInstance.get('/workspace').then(res => res.data),

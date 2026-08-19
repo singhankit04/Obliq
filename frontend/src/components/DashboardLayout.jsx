@@ -126,8 +126,28 @@ export default function DashboardLayout() {
     }
   };
 
+  const isManagerOrAdmin = useMemo(() => {
+    if (!user || !activeWorkspace) return false;
+    const currentUserId = user._id || user.id;
+    const ownerId = typeof activeWorkspace.owner === 'object' ? activeWorkspace.owner?._id : activeWorkspace.owner;
+    return (
+      activeWorkspace.role === 'owner' ||
+      activeWorkspace.role === 'manager' ||
+      activeWorkspace.role === 'admin' ||
+      ownerId === currentUserId
+    );
+  }, [user, activeWorkspace]);
+
   // Fetch workspace members when project modal opens
   const handleOpenProjectModal = async () => {
+    if (!isManagerOrAdmin) {
+      addToast({
+        title: 'Permission Denied',
+        message: 'Only workspace managers or admins can create and manage projects.',
+        type: 'error',
+      });
+      return;
+    }
     setError('');
     setProjName('');
     setProjDesc('');
@@ -227,26 +247,24 @@ export default function DashboardLayout() {
   // Nav items
   const navItems = [
     { path: '/', icon: LayoutGrid, label: 'Dashboard', exact: true },
-  ];
-
-  const secondaryNavItems = [
-    { icon: CheckSquare, label: 'My Tasks' },
-    { icon: Calendar, label: 'Calendar' },
-    { icon: Activity, label: 'Activity' },
-    { icon: Users, label: 'Members' },
-    { icon: Settings, label: 'Settings' },
+    { path: '/projects', icon: FolderKanban, label: 'My Projects' },
+    { path: '/my-tasks', icon: CheckSquare, label: 'My Tasks' },
+    { path: '/calendar', icon: Calendar, label: 'Calendar' },
+    { path: '/activity', icon: Activity, label: 'Activity' },
+    { path: '/members', icon: Users, label: 'Team' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
   return (
-    <div className="min-h-screen flex bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="h-screen w-screen overflow-hidden flex bg-[var(--bg-primary)] text-[var(--text-primary)]">
 
       {/* ════════ SIDEBAR ════════ */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex flex-col border-r border-zinc-800 bg-[var(--bg-sidebar)]',
+          'fixed inset-y-0 left-0 z-40 flex flex-col border-r border-zinc-800 bg-[var(--bg-sidebar)] h-screen overflow-hidden shrink-0',
           'transition-[width] duration-200 ease-out',
           isCollapsed ? 'w-[68px]' : 'w-[260px]',
-          'lg:translate-x-0 lg:static lg:h-screen lg:sticky lg:top-0',
+          'lg:translate-x-0 lg:static',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -295,7 +313,7 @@ export default function DashboardLayout() {
             {!isCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-zinc-200 truncate">
+                  <p className="text-sm font-bold text-zinc-100 tracking-tight truncate">
                     {activeWorkspace ? activeWorkspace.name : 'Select Workspace'}
                   </p>
                 </div>
@@ -362,112 +380,30 @@ export default function DashboardLayout() {
         </div>
 
         {/* Nav Links */}
-        <nav className={cn('flex-1 overflow-y-auto py-4 space-y-6', isCollapsed ? 'px-2' : 'px-3')}>
-          {/* Primary Nav */}
-          <div className="space-y-0.5">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.label}
-                  to={item.path}
-                  onClick={closeMobile}
-                  className={cn(
-                    'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
-                    isCollapsed && 'justify-center px-2',
-                    isActive
-                      ? 'bg-blue-500/10 text-blue-400'
-                      : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
-                  )}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <item.icon className="w-4 h-4 shrink-0" />
-                  {!isCollapsed && item.label}
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Projects */}
-          <div>
-            <div className={cn('flex items-center mb-2', isCollapsed ? 'justify-center' : 'justify-between px-3')}>
-              {!isCollapsed && (
-                <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-                  Projects
-                </span>
-              )}
-              {activeWorkspace && (
-                <button
-                  onClick={handleOpenProjectModal}
-                  className="p-1 hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 rounded-lg transition-colors"
-                  title="Create Project"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            {projects.length === 0 ? (
-              <div className={cn(
-                'border border-dashed border-zinc-800 rounded-xl text-center',
-                isCollapsed ? 'px-2 py-3' : 'px-3 py-4'
-              )}>
-                <p className="text-xs text-zinc-600">
-                  {isCollapsed ? '—' : 'No projects yet'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {projects.map((proj) => {
-                  const isActive = projectId === proj._id;
-                  return (
-                    <Link
-                      key={proj._id}
-                      to={`/project/${proj._id}`}
-                      onClick={closeMobile}
-                      className={cn(
-                        'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
-                        isCollapsed && 'justify-center px-2',
-                        isActive
-                          ? 'bg-blue-500/10 text-blue-400'
-                          : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
-                      )}
-                      title={isCollapsed ? proj.name : undefined}
-                    >
-                      <Folder className="w-4 h-4 shrink-0" />
-                      {!isCollapsed && <span className="truncate">{proj.name}</span>}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Secondary Nav */}
-          <div>
-            {!isCollapsed && (
-              <div className="px-3 mb-2">
-                <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-                  Navigation
-                </span>
-              </div>
-            )}
-            <div className="space-y-0.5">
-              {secondaryNavItems.map((item) => (
-                <button
-                  key={item.label}
-                  className={cn(
-                    'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors cursor-pointer',
-                    isCollapsed && 'justify-center px-2'
-                  )}
-                  onClick={closeMobile}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <item.icon className="w-4 h-4 shrink-0" />
-                  {!isCollapsed && item.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <nav className={cn('flex-1 overflow-y-auto py-4 space-y-1', isCollapsed ? 'px-2' : 'px-3')}>
+          {navItems.map((item) => {
+            const isActive = item.exact
+              ? location.pathname === item.path
+              : location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+            return (
+              <Link
+                key={item.label}
+                to={item.path}
+                onClick={closeMobile}
+                className={cn(
+                  'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                  isCollapsed && 'justify-center px-2',
+                  isActive
+                    ? 'bg-blue-500/15 text-blue-400 font-semibold border-r-2 border-blue-500'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                )}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <item.icon className="w-4 h-4 shrink-0" />
+                {!isCollapsed && item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Bottom section */}
@@ -479,7 +415,7 @@ export default function DashboardLayout() {
               isCollapsed ? 'justify-center p-2' : 'justify-between p-2.5'
             )}>
               <div className="min-w-0 flex items-center gap-2.5">
-                <Avatar name={user?.name} size="sm" />
+                <Avatar name={user?.name} src={user?.avatar} size="sm" />
                 {!isCollapsed && (
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-zinc-200 truncate">{user?.name}</p>
@@ -515,10 +451,10 @@ export default function DashboardLayout() {
       </AnimatePresence>
 
       {/* ════════ MAIN CONTENT ════════ */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
 
         {/* Top Navbar */}
-        <header className="h-14 border-b border-zinc-800 flex items-center justify-between gap-4 px-4 sm:px-6 bg-[var(--bg-primary)]/80 backdrop-blur-md sticky top-0 z-30">
+        <header className="h-14 border-b border-zinc-800 flex items-center justify-between gap-4 px-4 sm:px-6 bg-[var(--bg-primary)]/80 backdrop-blur-md shrink-0 z-30">
           <div className="flex items-center gap-3">
             {/* Mobile menu */}
             <button
@@ -535,13 +471,27 @@ export default function DashboardLayout() {
             >
               {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             </button>
-            {/* Workspace name */}
-            <div className="hidden sm:block">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Workspace</p>
-              <h1 className="text-sm font-bold text-zinc-100 -mt-0.5">
-                {activeWorkspace ? activeWorkspace.name : 'Obliq'}
-              </h1>
-            </div>
+            {/* Dynamic Workspace / Project Name */}
+            {(() => {
+              const currentProjectId = projectId || location.pathname.match(/\/project\/([^/]+)/)?.[1];
+              const currentProject = currentProjectId ? projects.find((p) => p._id === currentProjectId) : null;
+
+              return (
+                <div className="flex items-center gap-2 text-sm sm:text-base font-bold">
+                  <span className={currentProject ? "text-zinc-400 font-semibold" : "text-zinc-100 font-bold tracking-tight"}>
+                    {activeWorkspace ? activeWorkspace.name : 'Workspace'}
+                  </span>
+                  {currentProject && (
+                    <>
+                      <span className="text-zinc-600 font-normal text-xs sm:text-sm">/</span>
+                      <span className="text-zinc-100 font-bold tracking-tight truncate max-w-[160px] sm:max-w-[260px]">
+                        {currentProject.name}
+                      </span>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Search trigger */}
@@ -650,7 +600,7 @@ export default function DashboardLayout() {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="rounded-xl transition-colors hover:bg-zinc-800 p-1"
               >
-                <Avatar name={user?.name} size="sm" />
+                <Avatar name={user?.name} src={user?.avatar} size="sm" />
               </button>
 
               <AnimatePresence>
@@ -667,7 +617,7 @@ export default function DashboardLayout() {
                       <p className="text-[10px] text-zinc-600 truncate">{user?.email}</p>
                     </div>
                     <button
-                      onClick={() => { setShowUserMenu(false); }}
+                      onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors text-left"
                     >
                       <Settings className="w-3.5 h-3.5" />
@@ -688,7 +638,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 overflow-hidden min-h-0 flex flex-col">
           {activeWorkspace ? (
             <Outlet context={{ activeWorkspace, projects, refreshProjects }} />
           ) : (

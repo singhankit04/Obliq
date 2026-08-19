@@ -75,18 +75,21 @@ export const getWorkspaceProjects = async (workspaceId, userId) => {
     return Project.find({ workspace: workspaceId }).lean();
   }
 
-  // Regular members can only view projects in which they are a ProjectMember
+  // Regular members can view projects in which they are a ProjectMember or the assigned manager
   const projectMemberships = await ProjectMember.find({ user: userId }).select('project');
   const userProjectIds = projectMemberships.map((pm) => pm.project);
 
   return Project.find({
     workspace: workspaceId,
-    _id: { $in: userProjectIds },
+    $or: [
+      { _id: { $in: userProjectIds } },
+      { manager: userId },
+    ],
   }).lean();
 };
 
 /**
- * Get a single project by ID (must be a project member).
+ * Get a single project by ID (must be a project member or manager or workspace admin).
  */
 export const getProjectById = async (projectId, userId) => {
   const project = await Project.findById(projectId).lean();
@@ -104,9 +107,10 @@ export const getProjectById = async (projectId, userId) => {
   }
 
   const isWorkspaceAdmin = ['owner', 'manager'].includes(workspaceMembership.role);
+  const isProjectManager = project.manager?.toString() === userId.toString();
   const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
 
-  if (!projectMembership && !isWorkspaceAdmin) {
+  if (!projectMembership && !isWorkspaceAdmin && !isProjectManager) {
     const error = new Error('Access denied: you are not a member of this project');
     error.statusCode = 403;
     throw error;
@@ -129,7 +133,7 @@ export const updateProject = async (projectId, userId, updates) => {
   const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
 
   const isWorkspaceAdmin = workspaceMembership && ['owner', 'manager'].includes(workspaceMembership.role);
-  const isProjectManager = projectMembership && projectMembership.role === 'manager';
+  const isProjectManager = (projectMembership && projectMembership.role === 'manager') || project.manager?.toString() === userId.toString();
 
   if (!isWorkspaceAdmin && !isProjectManager) {
     const error = new Error('Forbidden: insufficient permissions');
@@ -155,7 +159,7 @@ export const deleteProject = async (projectId, userId) => {
   const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
 
   const isWorkspaceAdmin = workspaceMembership && ['owner', 'manager'].includes(workspaceMembership.role);
-  const isProjectManager = projectMembership && projectMembership.role === 'manager';
+  const isProjectManager = (projectMembership && projectMembership.role === 'manager') || project.manager?.toString() === userId.toString();
 
   if (!isWorkspaceAdmin && !isProjectManager) {
     const error = new Error('Forbidden: insufficient permissions');
@@ -181,16 +185,17 @@ export const getProjectMembers = async (projectId, userId) => {
 
   const workspaceMembership = await assertWorkspaceMember(project.workspace, userId);
   const isWorkspaceAdmin = ['owner', 'manager'].includes(workspaceMembership.role);
+  const isProjectManager = project.manager?.toString() === userId.toString();
   const projectMembership = await ProjectMember.findOne({ project: projectId, user: userId });
 
-  if (!projectMembership && !isWorkspaceAdmin) {
+  if (!projectMembership && !isWorkspaceAdmin && !isProjectManager) {
     const error = new Error('Access denied: you are not a member of this project');
     error.statusCode = 403;
     throw error;
   }
   return ProjectMember.find({ project: projectId })
-    .populate('user', 'name email')
-    .populate('invitedBy', 'name email')
+    .populate('user', 'name email avatar')
+    .populate('invitedBy', 'name email avatar')
     .lean();
 };
 

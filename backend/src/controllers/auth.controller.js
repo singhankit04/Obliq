@@ -1,12 +1,14 @@
 import * as authService from '../services/auth.service.js';
 
-const setCookies = (res, accessToken, refreshToken) => {
+const setCookies = (res, req, accessToken, refreshToken) => {
   const isProduction = process.env.NODE_ENV === 'production';
+  
 
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
     maxAge: 15 * 60 * 1000, // 15 mins
   });
 
@@ -14,6 +16,7 @@ const setCookies = (res, accessToken, refreshToken) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
@@ -40,7 +43,7 @@ export const verifyOtp = async (req, res, next) => {
     const result = await authService.verifySignupOtp(email, otp, userAgent, ip);
 
     if (result?.isLogin) {
-      setCookies(res, result.accessToken, result.refreshToken);
+      setCookies(res, req, result.accessToken, result.refreshToken);
       return res.json({
         message: 'Login successful',
         user: result.user
@@ -64,7 +67,7 @@ export const signup = async (req, res, next) => {
 
     const result = await authService.registerUser({ name, email, password, userAgent, ip });
 
-    setCookies(res, result.accessToken, result.refreshToken);
+    setCookies(res, req, result.accessToken, result.refreshToken);
 
     res.status(201).json({
       message: 'Signup successful',
@@ -84,11 +87,9 @@ export const login = async (req, res, next) => {
     const userAgent = req.headers['user-agent'];
     const ip = req.ip;
 
-   
     const result = await authService.loginUser({ email, password, userAgent, ip });
 
-  
-    setCookies(res, result.accessToken, result.refreshToken);
+    setCookies(res, req, result.accessToken, result.refreshToken);
 
     res.json({
       message: 'Login successful',
@@ -108,7 +109,7 @@ export const refresh = async (req, res, next) => {
 
     const result = await authService.refreshAuthTokens(refreshToken);
 
-    setCookies(res, result.accessToken, result.refreshToken);
+    setCookies(res, req, result.accessToken, result.refreshToken);
     res.json({ message: 'Token refreshed successfully' });
   } catch (error) {
     if (error.statusCode) {
@@ -190,11 +191,51 @@ export const googleLogin = async (req, res, next) => {
 
     const result = await authService.loginWithGoogle({ credential, userAgent, ip });
 
-    setCookies(res, result.accessToken, result.refreshToken);
+    setCookies(res, req, result.accessToken, result.refreshToken);
 
     res.json({
       message: 'Google login successful',
       user: result.user
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
+export const uploadAvatar = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ message: 'Please select an image file to upload.' });
+    }
+
+    const updatedUser = await authService.updateUserAvatar(userId, file);
+
+    res.json({
+      message: 'Profile picture updated successfully.',
+      user: updatedUser,
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
+export const deleteAvatar = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const updatedUser = await authService.removeUserAvatar(userId);
+
+    res.json({
+      message: 'Profile picture removed successfully.',
+      user: updatedUser,
     });
   } catch (error) {
     if (error.statusCode) {

@@ -11,7 +11,6 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  console.log(user)
   const userId = user?._id || user?.id;
 
   useEffect(() => {

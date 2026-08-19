@@ -23,6 +23,14 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    avatar: {
+      type: String,
+      default: null,
+    },
+    avatarPublicId: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

@@ -119,7 +119,6 @@ export const acceptInvite = async (req, res, next) => {
 
 export const rejectInvite = async (req, res, next) => {
   try {
-    console.log(req.body)
     const token = req.body.token || req.params.token;
     const result = await workspaceService.rejectWorkspaceInvite(token, req.user._id);
     res.json(result);

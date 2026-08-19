@@ -17,6 +17,12 @@ import Dashboard from './pages/Dashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import TaskDetail from './pages/TaskDetail';
 import AcceptInvite from './pages/AcceptInvite';
+import MyTasks from './pages/MyTasks';
+import CalendarView from './pages/CalendarView';
+import ActivityLog from './pages/ActivityLog';
+import MembersView from './pages/MembersView';
+import SettingsView from './pages/SettingsView';
+import ProjectsView from './pages/ProjectsView';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -87,6 +93,14 @@ export default function App() {
                     <Route element={<ProtectedRoute />}>
                       <Route element={<DashboardLayout />}>
                         <Route path="/" element={<Dashboard />} />
+                        <Route path="/projects" element={<ProjectsView />} />
+                        <Route path="/my-tasks" element={<MyTasks />} />
+                        <Route path="/tasks" element={<MyTasks />} />
+                        <Route path="/calendar" element={<CalendarView />} />
+                        <Route path="/activity" element={<ActivityLog />} />
+                        <Route path="/members" element={<MembersView />} />
+                        <Route path="/team" element={<MembersView />} />
+                        <Route path="/settings" element={<SettingsView />} />
                         <Route path="/project/:projectId" element={<ProjectDetail />} />
                         <Route path="/project/:projectId/task/:taskId" element={<TaskDetail />} />
                       </Route>

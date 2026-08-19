@@ -14,6 +14,7 @@ import { sendEmail } from '../config/mailer.js';
 import { renderOtpEmail, renderResetPasswordEmail } from '../templates/index.js';
 import { recordOtpRequest, recordFailedLogin, clearFailedLogins, recordFailedOtpVerify } from '../middlewares/rateLimiter.middleware.js';
 import { addWelcomeEmailJob } from '../queues/email.queue.js';
+import { uploadAvatarToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
 
 
 // Internal helpers
@@ -154,7 +155,7 @@ export const registerUser = async ({ name, email, password, userAgent, ip }) => 
   });
 
   return {
-    user: { _id: user._id, name: user.name, email: user.email },
+    user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar || null },
     ...tokens
   };
 };
@@ -173,7 +174,7 @@ export const loginUser = async ({ email, password, userAgent, ip }) => {
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 
   return {
-    user: { _id: user._id, name: user.name, email: user.email },
+    user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar || null },
     ...tokens
   };
 };
@@ -337,7 +338,67 @@ export const loginWithGoogle = async ({ credential, userAgent, ip }) => {
   const tokens = await createSessionAndTokens(user, userAgent, ip);
 
   return {
-    user: { _id: user._id, name: user.name, email: user.email },
+    user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar || null },
     ...tokens
+  };
+};
+
+export const updateUserAvatar = async (userId, file) => {
+  if (!file) {
+    const error = new Error('No image file provided');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Delete previous avatar from Cloudinary if it exists
+  const previousPublicId = user.avatarPublicId || user.avatar;
+  if (previousPublicId) {
+    await deleteFromCloudinary(previousPublicId, 'image');
+  }
+
+  // Upload new avatar to Cloudinary
+  const { avatarUrl, publicId } = await uploadAvatarToCloudinary(file.buffer, file.originalname);
+  user.avatar = avatarUrl;
+  user.avatarPublicId = publicId;
+  await user.save();
+
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar,
+  };
+};
+
+export const removeUserAvatar = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Delete current avatar from Cloudinary
+  const publicIdToDelete = user.avatarPublicId || user.avatar;
+  if (publicIdToDelete) {
+    await deleteFromCloudinary(publicIdToDelete, 'image');
+  }
+
+  user.avatar = null;
+  user.avatarPublicId = null;
+  await user.save();
+
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    avatar: null,
   };
 };
